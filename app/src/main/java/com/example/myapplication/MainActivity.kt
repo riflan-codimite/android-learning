@@ -30,6 +30,7 @@ import com.example.myapplication.screens.ListScreen
 import com.example.myapplication.screens.SettingsScreen
 import com.example.myapplication.screens.SideEffectsScreen
 import com.example.myapplication.screens.UIComponentsScreen
+import com.example.myapplication.screens.ZoomScreen
 import com.example.myapplication.state.LocalUserPreferences
 import com.example.myapplication.state.rememberAppState
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -88,7 +89,7 @@ fun MainApp(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Counter.route,
+            startDestination = Screen.Zoom.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Counter.route) {
@@ -96,6 +97,9 @@ fun MainApp(
             }
             composable(Screen.List.route) {
                 ListScreen()
+            }
+            composable(Screen.Zoom.route) {
+                ZoomScreen()
             }
             composable(Screen.SideEffects.route) {
                 SideEffectsScreen()

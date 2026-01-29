@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -23,6 +24,12 @@ sealed class Screen(
         route = "list",
         title = "List",
         icon = Icons.Default.Add
+    )
+
+    object Zoom : Screen(
+        route = "zoom",
+        title = "Zoom",
+        icon = Icons.Default.PlayArrow
     )
 
     object SideEffects : Screen(
@@ -45,8 +52,8 @@ sealed class Screen(
 }
 
 val bottomNavItems = listOf(
+    Screen.Zoom,
     Screen.Counter,
-    Screen.List,
     Screen.SideEffects,
     Screen.UIComponents,
     Screen.Settings
