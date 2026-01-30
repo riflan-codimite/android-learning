@@ -8,8 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -193,6 +192,7 @@ class ZoomSessionActivity : ComponentActivity() {
     private var participantCount = mutableStateOf(0)          // Total number of participants
     private var remoteParticipants = mutableStateOf(listOf<String>()) // Names of other participants
     private var showChat = mutableStateOf(false)              // Whether chat bottom sheet is visible
+    private var hasUnreadMessages = mutableStateOf(false)     // True when new chat messages arrive while chat is closed
     private var showWhiteboard = mutableStateOf(false)        // Whether whiteboard is visible
     private var showTranscription = mutableStateOf(false)     // Whether transcription overlay is visible
     private var showSubsessions = mutableStateOf(false)       // Whether subsession sheet is visible
@@ -369,6 +369,9 @@ class ZoomSessionActivity : ComponentActivity() {
                             message = msg.getContent() ?: "",
                             isFromMe = false
                         ))
+                        if (!showChat.value) {
+                            hasUnreadMessages.value = true
+                        }
                     }
                 }
             }
@@ -683,6 +686,7 @@ class ZoomSessionActivity : ComponentActivity() {
                     isRecording = isRecording.value,
                     selectedTranscriptionLanguage = selectedTranslationLanguage.value,
                     availableTranscriptionLanguages = availableTranscriptionLanguages.value,
+                    hasUnreadMessages = hasUnreadMessages.value,
                     chatMessages = chatMessages.value,
                     transcriptionMessages = transcriptionMessages.value,
                     activeReactions = activeReactions.value,
@@ -690,7 +694,10 @@ class ZoomSessionActivity : ComponentActivity() {
                     waitingRoomUsers = waitingRoomUsers.value,
                     onToggleMute = { toggleMute() },
                     onToggleVideo = { toggleVideo() },
-                    onToggleChat = { showChat.value = !showChat.value },
+                    onToggleChat = {
+                        showChat.value = !showChat.value
+                        if (showChat.value) hasUnreadMessages.value = false
+                    },
                     onToggleWhiteboard = { showWhiteboard.value = !showWhiteboard.value },
                     onToggleTranscription = {
                         Log.d(TAG, "onToggleTranscription called, showTranscription: ${showTranscription.value} -> ${!showTranscription.value}")
@@ -1234,6 +1241,7 @@ fun ZoomSessionScreen(
     isRecording: Boolean,
     selectedTranscriptionLanguage: String,
     availableTranscriptionLanguages: List<String>,
+    hasUnreadMessages: Boolean,
     chatMessages: List<ChatMessage>,
     transcriptionMessages: List<TranscriptionMessage>,
     activeReactions: List<ReactionEmoji>,
@@ -1466,15 +1474,38 @@ fun ZoomSessionScreen(
                     inactiveColor = Color.White
                 )
 
-                // Chat - Chat icon
-                BottomBarButton(
-                    onClick = onToggleChat,
-                    icon = Icons.Filled.Email,
-                    label = "Chat",
-                    isActive = showChat,
-                    activeColor = Color(0xFF0084FF),
-                    inactiveColor = Color.White
-                )
+                // Chat - Chat icon with unread indicator
+                Box {
+                    BottomBarButton(
+                        onClick = onToggleChat,
+                        icon = Icons.Filled.Email,
+                        label = "Chat",
+                        isActive = showChat,
+                        activeColor = Color(0xFF0084FF),
+                        inactiveColor = Color.White
+                    )
+                    if (hasUnreadMessages) {
+
+                        val infiniteTransition = rememberInfiniteTransition(label = "unread")
+                        val alpha by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 0.2f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "unread_alpha"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = 6.dp, top = 4.dp)
+                                .size(10.dp)
+                                .graphicsLayer { this.alpha = alpha }
+                                .background(Color(0xFFE53935), CircleShape)
+                        )
+                    }
+                }
 
                 // More
                 BottomBarButton(
