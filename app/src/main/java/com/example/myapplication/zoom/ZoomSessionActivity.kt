@@ -192,7 +192,7 @@ class ZoomSessionActivity : ComponentActivity() {
     private var participantCount = mutableStateOf(0)          // Total number of participants
     private var remoteParticipants = mutableStateOf(listOf<String>()) // Names of other participants
     private var showChat = mutableStateOf(false)              // Whether chat bottom sheet is visible
-    private var hasUnreadMessages = mutableStateOf(false)     // True when new chat messages arrive while chat is closed
+    private var unreadMessageCount = mutableStateOf(0)        // Count of new chat messages received while chat is closed
     private var showWhiteboard = mutableStateOf(false)        // Whether whiteboard is visible
     private var showTranscription = mutableStateOf(false)     // Whether transcription overlay is visible
     private var showSubsessions = mutableStateOf(false)       // Whether subsession sheet is visible
@@ -370,7 +370,7 @@ class ZoomSessionActivity : ComponentActivity() {
                             isFromMe = false
                         ))
                         if (!showChat.value) {
-                            hasUnreadMessages.value = true
+                            unreadMessageCount.value++
                         }
                     }
                 }
@@ -686,7 +686,7 @@ class ZoomSessionActivity : ComponentActivity() {
                     isRecording = isRecording.value,
                     selectedTranscriptionLanguage = selectedTranslationLanguage.value,
                     availableTranscriptionLanguages = availableTranscriptionLanguages.value,
-                    hasUnreadMessages = hasUnreadMessages.value,
+                    unreadMessageCount = unreadMessageCount.value,
                     chatMessages = chatMessages.value,
                     transcriptionMessages = transcriptionMessages.value,
                     activeReactions = activeReactions.value,
@@ -696,7 +696,7 @@ class ZoomSessionActivity : ComponentActivity() {
                     onToggleVideo = { toggleVideo() },
                     onToggleChat = {
                         showChat.value = !showChat.value
-                        if (showChat.value) hasUnreadMessages.value = false
+                        if (showChat.value) unreadMessageCount.value = 0
                     },
                     onToggleWhiteboard = { showWhiteboard.value = !showWhiteboard.value },
                     onToggleTranscription = {
@@ -1241,7 +1241,7 @@ fun ZoomSessionScreen(
     isRecording: Boolean,
     selectedTranscriptionLanguage: String,
     availableTranscriptionLanguages: List<String>,
-    hasUnreadMessages: Boolean,
+    unreadMessageCount: Int,
     chatMessages: List<ChatMessage>,
     transcriptionMessages: List<TranscriptionMessage>,
     activeReactions: List<ReactionEmoji>,
@@ -1484,7 +1484,8 @@ fun ZoomSessionScreen(
                         activeColor = Color(0xFF0084FF),
                         inactiveColor = Color.White
                     )
-                    if (hasUnreadMessages) {
+                    if (unreadMessageCount > 0) {
+
 
                         val infiniteTransition = rememberInfiniteTransition(label = "unread")
                         val alpha by infiniteTransition.animateFloat(
@@ -1496,14 +1497,24 @@ fun ZoomSessionScreen(
                             ),
                             label = "unread_alpha"
                         )
+                        val countText = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString()
                         Box(
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(end = 6.dp, top = 4.dp)
-                                .size(10.dp)
+                                .padding(end = 2.dp, top = 2.dp)
+                                .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
                                 .graphicsLayer { this.alpha = alpha }
                                 .background(Color(0xFFE53935), CircleShape)
-                        )
+                        ) {
+                            Text(
+                                text = countText,
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 3.dp)
+                            )
+                        }
                     }
                 }
 
