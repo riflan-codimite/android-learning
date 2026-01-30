@@ -46,7 +46,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import us.zoom.sdk.*
 
-// Data class for chat messages
+/**
+ * Data class representing a chat message in the Zoom session.
+ *
+ * @property id Unique identifier based on timestamp
+ * @property messageId UUID for tracking reactions to this message
+ * @property senderName Display name of the message sender
+ * @property message The actual text content of the message
+ * @property timestamp Unix timestamp when message was sent
+ * @property isFromMe True if current user sent this message (for UI positioning)
+ * @property reactions Map of emoji to list of userIds who reacted with that emoji
+ */
 data class ChatMessage(
     val id: String = System.currentTimeMillis().toString(),
     val messageId: String = java.util.UUID.randomUUID().toString(),
@@ -57,7 +67,15 @@ data class ChatMessage(
     val reactions: Map<String, List<String>> = emptyMap() // emoji -> list of userIds
 )
 
-// Data class for transcription messages
+/**
+ * Data class representing a live transcription/caption message.
+ *
+ * @property id Unique identifier based on timestamp
+ * @property speakerName Name of the person speaking
+ * @property originalText The transcribed text in the original spoken language
+ * @property translatedText Optional translated text if translation is enabled
+ * @property timestamp Unix timestamp when transcription was captured
+ */
 data class TranscriptionMessage(
     val id: String = System.currentTimeMillis().toString(),
     val speakerName: String,
@@ -66,14 +84,30 @@ data class TranscriptionMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-// Data class for drawing paths
+/**
+ * Data class representing a drawing path on the whiteboard.
+ *
+ * @property path The Compose Path object containing the drawing coordinates
+ * @property color Color of the stroke
+ * @property strokeWidth Width of the stroke in pixels
+ */
 data class DrawingPath(
     val path: Path,
     val color: Color,
     val strokeWidth: Float
 )
 
-// Data class for reactions
+/**
+ * Data class representing a reaction emoji sent during the session.
+ * Used for both floating reactions (👍❤️😂) and persistent raise hands (✋).
+ *
+ * @property id Unique identifier based on timestamp
+ * @property emoji The emoji string (e.g., "👍", "✋")
+ * @property senderName Display name of who sent the reaction
+ * @property senderId User ID for tracking (to toggle raise hand)
+ * @property timestamp Unix timestamp when reaction was sent
+ * @property isRaiseHand True if this is a persistent raise hand (not auto-removed)
+ */
 data class ReactionEmoji(
     val id: String = System.currentTimeMillis().toString(),
     val emoji: String,
@@ -83,72 +117,124 @@ data class ReactionEmoji(
     val isRaiseHand: Boolean = false
 )
 
-// Data class for subsessions
+/**
+ * Data class representing a breakout room/subsession.
+ *
+ * @property id Unique identifier for the subsession
+ * @property name Display name of the subsession (e.g., "Breakout Room 1")
+ * @property participantCount Number of participants in this subsession
+ */
 data class Subsession(
     val id: String,
     val name: String,
     val participantCount: Int
 )
 
-// Data class for waiting room users
+/**
+ * Data class representing a user in the waiting room.
+ * Only visible to hosts who can admit or remove users.
+ *
+ * @property id User's unique identifier
+ * @property name Display name of the waiting user
+ * @property timestamp When the user joined the waiting room
+ */
 data class WaitingRoomUser(
     val id: String,
     val name: String,
     val timestamp: Long = System.currentTimeMillis()
 )
 
+/**
+ * Main activity for hosting/joining a Zoom Video SDK session.
+ *
+ * This activity handles:
+ * - Joining/leaving Zoom sessions
+ * - Audio/video controls (mute, camera toggle)
+ * - Real-time chat with emoji reactions
+ * - Live transcription/captions
+ * - Screen sharing
+ * - Waiting room management (for hosts)
+ * - Participant management
+ * - Emoji reactions (floating and raise hand)
+ *
+ * Required Intent Extras:
+ * - EXTRA_SESSION_NAME: Name of the Zoom session to join
+ * - EXTRA_DISPLAY_NAME: User's display name
+ * - EXTRA_JWT_TOKEN: Authentication token for the session
+ * - EXTRA_IS_HOST: Whether this user is hosting the session
+ * - EXTRA_SESSION_PASSWORD: Optional password for the session
+ */
 class ZoomSessionActivity : ComponentActivity() {
 
+    /**
+     * Companion object containing constants for intent extras and logging.
+     */
     companion object {
-        const val TAG = "ZoomSessionActivity"
-        const val EXTRA_SESSION_NAME = "session_name"
-        const val EXTRA_DISPLAY_NAME = "display_name"
-        const val EXTRA_SESSION_PASSWORD = "session_password"
-        const val EXTRA_JWT_TOKEN = "jwt_token"
-        const val EXTRA_IS_HOST = "is_host"
+        const val TAG = "ZoomSessionActivity"  // Tag for Logcat debugging
+        const val EXTRA_SESSION_NAME = "session_name"  // Intent key for session name
+        const val EXTRA_DISPLAY_NAME = "display_name"  // Intent key for user's display name
+        const val EXTRA_SESSION_PASSWORD = "session_password"  // Intent key for session password
+        const val EXTRA_JWT_TOKEN = "jwt_token"  // Intent key for authentication token
+        const val EXTRA_IS_HOST = "is_host"  // Intent key for host status
     }
 
-    private var sessionName: String = ""
-    private var displayName: String = ""
-    private var sessionPassword: String = ""
-    private var jwtToken: String = ""
-    private var isHost: Boolean = true
+    // ==================== SESSION CONFIGURATION ====================
+    private var sessionName: String = ""        // Name of the Zoom session
+    private var displayName: String = ""        // User's display name shown to others
+    private var sessionPassword: String = ""    // Optional session password
+    private var jwtToken: String = ""           // JWT authentication token
+    private var isHost: Boolean = true          // Whether current user is the host
 
-    private var isInSession = mutableStateOf(false)
-    private var isMuted = mutableStateOf(true)
-    private var isVideoOn = mutableStateOf(false)
-    private var statusMessage = mutableStateOf("Connecting...")
-    private var participantCount = mutableStateOf(0)
-    private var remoteParticipants = mutableStateOf(listOf<String>()) // List of participant names
-    private var showChat = mutableStateOf(false)
-    private var showWhiteboard = mutableStateOf(false)
-    private var showTranscription = mutableStateOf(false)
-    private var showSubsessions = mutableStateOf(false)
-    private var showReactions = mutableStateOf(false)
-    private var showWaitingRoom = mutableStateOf(false)
-    private var isInWaitingRoom = mutableStateOf(false)
-    private var isTranscriptionEnabled = mutableStateOf(false)
-    private var isRecording = mutableStateOf(false)
-    private var selectedSpokenLanguage = mutableStateOf("English") // Language user is speaking
-    private var selectedTranslationLanguage = mutableStateOf("English") // Language to translate TO (captions)
+    // ==================== UI STATE (Observable with mutableStateOf) ====================
+    private var isInSession = mutableStateOf(false)           // True when actively in a session
+    private var isMuted = mutableStateOf(true)                // True when microphone is muted
+    private var isVideoOn = mutableStateOf(false)             // True when camera is on
+    private var statusMessage = mutableStateOf("Connecting...") // Connection status text
+    private var participantCount = mutableStateOf(0)          // Total number of participants
+    private var remoteParticipants = mutableStateOf(listOf<String>()) // Names of other participants
+    private var showChat = mutableStateOf(false)              // Whether chat bottom sheet is visible
+    private var showWhiteboard = mutableStateOf(false)        // Whether whiteboard is visible
+    private var showTranscription = mutableStateOf(false)     // Whether transcription overlay is visible
+    private var showSubsessions = mutableStateOf(false)       // Whether subsession sheet is visible
+    private var showReactions = mutableStateOf(false)         // Whether reactions picker is visible
+    private var showWaitingRoom = mutableStateOf(false)       // Whether waiting room sheet is visible
+    private var isInWaitingRoom = mutableStateOf(false)       // True if participant is in waiting room
+    private var isTranscriptionEnabled = mutableStateOf(false) // True if live transcription is active
+    private var isRecording = mutableStateOf(false)           // True if cloud recording is active
+    private var selectedSpokenLanguage = mutableStateOf("English")     // Language user is speaking
+    private var selectedTranslationLanguage = mutableStateOf("English") // Language for captions
     private var availableTranscriptionLanguages = mutableStateOf(listOf(
         "English", "Spanish", "French", "German", "Chinese (Simplified)", "Chinese (Traditional)",
         "Japanese", "Korean", "Portuguese", "Italian", "Russian", "Arabic", "Hindi",
         "Dutch", "Polish", "Vietnamese", "Ukrainian", "Turkish", "Indonesian", "Hebrew"
     ))
-    private var sdkSpokenLanguages = mutableStateOf<List<Any>>(emptyList())
-    private var sdkTranslationLanguages = mutableStateOf<List<Any>>(emptyList())
-    private var chatMessages = mutableStateOf(listOf<ChatMessage>())
-    private var transcriptionMessages = mutableStateOf(listOf<TranscriptionMessage>())
-    private var activeReactions = mutableStateOf(listOf<ReactionEmoji>())
-    private var raisedHands = mutableStateOf(listOf<ReactionEmoji>()) // Persistent raise hands
-    private var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())
+    private var sdkSpokenLanguages = mutableStateOf<List<Any>>(emptyList())       // SDK spoken languages cache
+    private var sdkTranslationLanguages = mutableStateOf<List<Any>>(emptyList())  // SDK translation languages cache
 
+    // ==================== DATA LISTS ====================
+    private var chatMessages = mutableStateOf(listOf<ChatMessage>())              // All chat messages in session
+    private var transcriptionMessages = mutableStateOf(listOf<TranscriptionMessage>()) // Live transcription texts
+    private var activeReactions = mutableStateOf(listOf<ReactionEmoji>())         // Floating reactions (auto-remove after 3s)
+    private var raisedHands = mutableStateOf(listOf<ReactionEmoji>())             // Persistent raise hands
+    private var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())      // Users waiting to be admitted
+
+    // ==================== PERMISSIONS ====================
+    /**
+     * Array of Android permissions required for video calling.
+     * CAMERA - Required to capture and share video
+     * RECORD_AUDIO - Required to capture and share audio/microphone
+     */
     private val requiredPermissions = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO
     )
 
+    /**
+     * Permission request launcher using the Activity Result API.
+     * Handles the result of permission requests:
+     * - If all permissions granted -> proceeds to join the Zoom session
+     * - If any permission denied -> shows toast message and closes the activity
+     */
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -161,9 +247,21 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    // ==================== ZOOM SDK EVENT LISTENER ====================
+    /**
+     * ZoomVideoSDKDelegate implementation that handles all Zoom SDK events.
+     *
+     * Key events handled:
+     * - onSessionJoin: Called when successfully joined a session
+     * - onSessionLeave: Called when leaving or disconnected from session
+     * - onError: Called when SDK encounters an error
+     * - onUserJoin/onUserLeave: Track participant changes
+     * - onChatNewMessageNotify: Receive new chat messages
+     * - onCommandReceived: Handle custom commands (chat reactions)
+     * - onLiveTranscriptionMsgReceived: Receive live captions
+     */
     private val zoomListener = object : ZoomVideoSDKDelegate {
         override fun onSessionJoin() {
-            Log.d(TAG, "Session joined successfully")
             runOnUiThread {
                 // Check if participant joined before host (waiting room scenario)
                 if (!isHost) {
@@ -233,6 +331,7 @@ class ZoomSessionActivity : ComponentActivity() {
                 // If host, add joining users to waiting room list (for demo)
                 if (isHost && userList != null) {
                     userList.forEach { user ->
+
                         val existingUser = waitingRoomUsers.value.find { it.id == user.userID }
                         if (existingUser == null) {
                             // In a real implementation, this would come from the SDK's waiting room API
@@ -251,12 +350,23 @@ class ZoomSessionActivity : ComponentActivity() {
             messageItem?.let { msg ->
                 runOnUiThread {
                     val myUser = ZoomVideoSDK.getInstance().session?.mySelf
-                    val isFromSelf = msg.senderUser?.userID == myUser?.userID
+                    val isFromSelf = msg.isSelfSend
+                    val sdkMessageId = msg.getMessageId()
 
-                    if (!isFromSelf) {
+                    if (isFromSelf && sdkMessageId != null) {
+                        // Update the optimistically-added message with the SDK-assigned ID
+                        chatMessages.value = chatMessages.value.map { chatMsg ->
+                            if (chatMsg.isFromMe && chatMsg.messageId.startsWith("pending_") && chatMsg.message == msg.getContent()) {
+                                chatMsg.copy(messageId = sdkMessageId)
+                            } else {
+                                chatMsg
+                            }
+                        }
+                    } else if (!isFromSelf) {
                         addChatMessage(ChatMessage(
-                            senderName = msg.senderUser?.userName ?: "Unknown",
-                            message = msg.content ?: "",
+                            messageId = sdkMessageId ?: java.util.UUID.randomUUID().toString(),
+                            senderName = msg.getSenderUser()?.userName ?: "Unknown",
+                            message = msg.getContent() ?: "",
                             isFromMe = false
                         ))
                     }
@@ -416,13 +526,34 @@ class ZoomSessionActivity : ComponentActivity() {
         override fun onRealTimeMediaStreamsFail(failReason: RealTimeMediaStreamsFailReason?) {}
     }
 
+    // ==================== CHAT FUNCTIONS ====================
+
+    /**
+     * Adds a new message to the chat message list.
+     * Uses immutable state update pattern for Compose reactivity.
+     *
+     * @param message The ChatMessage object to add
+     */
     private fun addChatMessage(message: ChatMessage) {
         chatMessages.value = chatMessages.value + message
     }
 
+    /**
+     * Sends a chat message to all participants in the session.
+     * Uses optimistic update pattern:
+     * 1. First adds message to local list immediately (better UX)
+     * 2. Then sends via Zoom SDK to broadcast to other participants
+     *
+     * @param message The text message to send
+     */
     private fun sendChatMessage(message: String) {
         if (message.isBlank()) return
-        addChatMessage(ChatMessage(senderName = displayName, message = message, isFromMe = true))
+        addChatMessage(ChatMessage(
+            messageId = "pending_${System.nanoTime()}",
+            senderName = displayName,
+            message = message,
+            isFromMe = true
+        ))
         try {
             ZoomVideoSDK.getInstance().chatHelper?.sendChatToAll(message)
         } catch (e: Exception) {
@@ -430,6 +561,15 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Updates the reactions on a specific chat message.
+     * Maps through all messages and updates the matching one with new reaction.
+     * Prevents duplicate reactions from the same user.
+     *
+     * @param messageId The unique ID of the message to react to
+     * @param emoji The reaction emoji (e.g., "👍", "❤️")
+     * @param odUserId The user ID of who sent the reaction
+     */
     private fun updateMessageReaction(messageId: String, emoji: String, odUserId: String) {
         chatMessages.value = chatMessages.value.map { message ->
             if (message.messageId == messageId) {
@@ -446,6 +586,19 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Sends a reaction to a chat message.
+     * Uses Zoom SDK's command channel to broadcast custom JSON to all participants.
+     *
+     * Flow:
+     * 1. Updates local UI immediately (optimistic update)
+     * 2. Creates JSON payload with reaction info
+     * 3. Broadcasts via cmdChannel.sendCommand() to all participants
+     * 4. Other participants receive via onCommandReceived callback
+     *
+     * @param messageId The unique ID of the message being reacted to
+     * @param emoji The reaction emoji
+     */
     private fun sendChatReaction(messageId: String, emoji: String) {
         val myUser = ZoomVideoSDK.getInstance().session?.mySelf
         val odUserId = myUser?.userID ?: displayName
@@ -466,6 +619,19 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    // ==================== ACTIVITY LIFECYCLE ====================
+
+    /**
+     * Activity lifecycle: Called when the activity is first created.
+     *
+     * Responsibilities:
+     * 1. Extract session parameters from Intent extras
+     * 2. Validate required parameters (session name and JWT token)
+     * 3. Register Zoom SDK event listener
+     * 4. Set up Compose UI with ZoomSessionScreen
+     * 5. Configure LaunchedEffect for auto-removing reactions after 3 seconds
+     * 6. Request permissions or join session if already granted
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -587,10 +753,32 @@ class ZoomSessionActivity : ComponentActivity() {
         if (hasRequiredPermissions()) joinZoomSession() else permissionLauncher.launch(requiredPermissions)
     }
 
+    // ==================== PERMISSION HANDLING ====================
+
+    /**
+     * Checks if all required permissions (CAMERA, RECORD_AUDIO) are granted.
+     *
+     * @return True if all permissions are granted, false otherwise
+     */
     private fun hasRequiredPermissions() = requiredPermissions.all {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    // ==================== SESSION MANAGEMENT ====================
+
+    /**
+     * Joins a Zoom Video SDK session with the configured parameters.
+     *
+     * Configuration:
+     * - Audio: Disconnected and muted by default (user must explicitly unmute)
+     * - Video: Off by default (user must explicitly start video)
+     * - Non-hosts: Start in waiting room state until host joins
+     *
+     * Uses ZoomVideoSDKSessionContext to configure:
+     * - Session name, user name, password
+     * - JWT authentication token
+     * - Audio and video options
+     */
     private fun joinZoomSession() {
         val audioOptions = ZoomVideoSDKAudioOption().apply { connect = false; mute = true }  // Don't auto-connect audio
         val videoOptions = ZoomVideoSDKVideoOption().apply { localVideoOn = false }
@@ -618,6 +806,21 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    // ==================== AUDIO/VIDEO CONTROLS ====================
+
+    /**
+     * Toggles the microphone mute state.
+     *
+     * Behavior when unmuting:
+     * 1. Checks if audio is connected to the session
+     * 2. If not connected, starts audio first (takes ~500ms)
+     * 3. Then unmutes the microphone
+     *
+     * Behavior when muting:
+     * - Simply mutes the microphone via SDK
+     *
+     * Updates isMuted state for UI reactivity.
+     */
     private fun toggleMute() {
         val myUser = ZoomVideoSDK.getInstance().session?.mySelf
         myUser?.let {
@@ -650,12 +853,31 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Toggles the camera on/off state.
+     *
+     * - If video is currently on -> stops video capture
+     * - If video is currently off -> starts video capture
+     *
+     * Updates isVideoOn state for UI reactivity.
+     */
     private fun toggleVideo() {
         if (isVideoOn.value) ZoomVideoSDK.getInstance().videoHelper?.stopVideo()
         else ZoomVideoSDK.getInstance().videoHelper?.startVideo()
         isVideoOn.value = !isVideoOn.value
     }
 
+    /**
+     * Ensures audio is muted and video is off after joining.
+     * Called when session join is successful to guarantee default state.
+     *
+     * Uses two-phase approach:
+     * 1. Immediate call to forceAudioVideoOff()
+     * 2. Delayed call (1 second) to handle SDK timing issues
+     *
+     * This is necessary because the SDK may not be fully ready
+     * immediately after onSessionJoin callback.
+     */
     private fun ensureAudioVideoOff() {
         Log.d(TAG, "Ensuring audio is muted and video is off")
         forceAudioVideoOff()
@@ -667,6 +889,17 @@ class ZoomSessionActivity : ComponentActivity() {
         }, 1000)
     }
 
+    /**
+     * Forces audio mute and video stop regardless of current state.
+     *
+     * Actions:
+     * 1. Gets current user from session
+     * 2. Checks audio status and mutes if not already muted
+     * 3. Stops video capture
+     * 4. Updates UI state to reflect muted/video-off state
+     *
+     * Used by ensureAudioVideoOff() to guarantee initial state.
+     */
     private fun forceAudioVideoOff() {
         try {
             val myUser = ZoomVideoSDK.getInstance().session?.mySelf
@@ -694,6 +927,23 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    // ==================== LIVE TRANSCRIPTION ====================
+
+    /**
+     * Starts live transcription/captions using Zoom SDK.
+     *
+     * Process:
+     * 1. Gets the liveTranscriptionHelper from SDK
+     * 2. Checks if transcription is available (canStartLiveTranscription)
+     * 3. Logs available spoken languages for debugging
+     * 4. Starts transcription with default language (English)
+     *
+     * Note: Currently configured for English only. Multi-language
+     * support requires additional SDK configuration.
+     *
+     * Transcription messages are received via onOriginalLanguageMsgReceived
+     * and onLiveTranscriptionMsgInfoReceived callbacks.
+     */
     private fun startLiveTranscription() {
         Log.d(TAG, "=== START LIVE TRANSCRIPTION (English Only) ===")
         try {
@@ -735,6 +985,21 @@ class ZoomSessionActivity : ComponentActivity() {
         Log.d(TAG, "=== END START LIVE TRANSCRIPTION ===")
     }
 
+    /**
+     * Sets the transcription language using reflection to find the language ID.
+     *
+     * This function uses reflection because the SDK's language objects
+     * don't have a consistent public API for getting language IDs.
+     *
+     * Process:
+     * 1. Gets the class of the language object
+     * 2. Tries multiple possible method names to find the language ID
+     * 3. If found, calls setSpokenLanguage() or setTranslationLanguage()
+     *
+     * @param transcriptionHelper The SDK's transcription helper
+     * @param language The language object from SDK
+     * @param isSpoken True to set spoken language, false for translation language
+     */
     private fun setLanguageById(
         transcriptionHelper: ZoomVideoSDKLiveTranscriptionHelper,
         language: ZoomVideoSDKLiveTranscriptionHelper.ILiveTranscriptionLanguage,
@@ -791,6 +1056,19 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Changes the transcription/caption language.
+     *
+     * Process:
+     * 1. Updates the selected language state
+     * 2. If transcription is already running, restarts it with new language
+     * 3. If not running, language will be applied when transcription starts
+     *
+     * Note: Currently, multi-language transcription has limited support.
+     * English is the most reliable language for transcription.
+     *
+     * @param language The language name (e.g., "English", "Spanish")
+     */
     private fun setTranscriptionLanguage(language: String) {
         Log.d(TAG, "=== SET TRANSCRIPTION LANGUAGE ===")
         Log.d(TAG, "Previous translation language: ${selectedTranslationLanguage.value}")
@@ -816,6 +1094,10 @@ class ZoomSessionActivity : ComponentActivity() {
         Log.d(TAG, "=== END SET TRANSCRIPTION LANGUAGE ===")
     }
 
+    /**
+     * Stops the live transcription service.
+     * Called when user disables transcription or when changing languages.
+     */
     private fun stopLiveTranscription() {
         try {
             val transcriptionHelper = ZoomVideoSDK.getInstance().liveTranscriptionHelper
@@ -826,37 +1108,109 @@ class ZoomSessionActivity : ComponentActivity() {
         }
     }
 
+    // ==================== SESSION CONTROL ====================
+
+    /**
+     * Leaves the current Zoom session and closes the activity.
+     *
+     * Behavior differs based on role:
+     * - If host: Ends the session for all participants
+     * - If participant: Only leaves (session continues for others)
+     */
     private fun leaveSession() {
         ZoomVideoSDK.getInstance().leaveSession(isHost)
         finish()
     }
 
+    /**
+     * Updates the participant count and remote participant names list.
+     * Called when users join or leave the session.
+     *
+     * Calculates total count as: remote users + 1 (self)
+     * Also updates the list of remote participant names for display.
+     */
     private fun updateParticipantCount() {
         val remoteUsers = ZoomVideoSDK.getInstance().session?.remoteUsers
         participantCount.value = (remoteUsers?.size ?: 0) + 1
         remoteParticipants.value = remoteUsers?.mapNotNull { it.userName } ?: emptyList()
     }
 
+    // ==================== WAITING ROOM MANAGEMENT (Host Only) ====================
+
+    /**
+     * Admits a specific user from the waiting room into the session.
+     * Host-only function.
+     *
+     * @param userId The ID of the user to admit
+     */
     private fun admitUserFromWaitingRoom(userId: String) {
         waitingRoomUsers.value = waitingRoomUsers.value.filter { it.id != userId }
     }
 
+    /**
+     * Removes a user from the waiting room without admitting them.
+     * Host-only function. User will need to rejoin.
+     *
+     * @param userId The ID of the user to remove
+     */
     private fun removeFromWaitingRoom(userId: String) {
         waitingRoomUsers.value = waitingRoomUsers.value.filter { it.id != userId }
     }
 
+    /**
+     * Admits all users currently in the waiting room.
+     * Host-only function. Clears the entire waiting room list.
+     */
     private fun admitAllFromWaitingRoom() {
         waitingRoomUsers.value = emptyList()
     }
 
+    /**
+     * Activity lifecycle: Called when the activity is being destroyed.
+     * Removes the Zoom SDK listener to prevent memory leaks.
+     */
     override fun onDestroy() {
         super.onDestroy()
         ZoomVideoSDK.getInstance().removeListener(zoomListener)
     }
 }
 
-// ==================== COMPOSABLES ====================
+// ==================== COMPOSABLE UI COMPONENTS ====================
 
+/**
+ * Main composable screen for the Zoom session.
+ *
+ * Layout Structure:
+ * - Full-screen video tile (background)
+ * - Top bar: Session name, status, participant count button
+ * - Bottom bar: Mute, Video, Share, Chat, More buttons
+ * - Overlays: Recording indicator, raised hands, floating reactions, transcription
+ * - Bottom sheets: Chat, Whiteboard, Participants, More options, Waiting room
+ *
+ * @param sessionName Name of the current session
+ * @param displayName Current user's display name
+ * @param isInSession Whether actively connected to session
+ * @param isMuted Current microphone mute state
+ * @param isVideoOn Current camera state
+ * @param statusMessage Connection status text
+ * @param participantCount Total number of participants
+ * @param remoteParticipants List of other participants' names
+ * @param isHost Whether current user is the host
+ * @param showChat Whether chat bottom sheet is visible
+ * @param showWhiteboard Whether whiteboard is visible
+ * @param showTranscription Whether transcription overlay is visible
+ * @param chatMessages List of chat messages
+ * @param transcriptionMessages List of transcription messages
+ * @param activeReactions List of floating reaction emojis
+ * @param raisedHands List of persistent raised hands
+ * @param waitingRoomUsers List of users in waiting room (host only)
+ * @param onToggleMute Callback to toggle microphone
+ * @param onToggleVideo Callback to toggle camera
+ * @param onToggleChat Callback to toggle chat visibility
+ * @param onSendMessage Callback to send chat message
+ * @param onChatReaction Callback to send reaction to a message
+ * @param onLeaveSession Callback to leave the session
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ZoomSessionScreen(
@@ -1235,6 +1589,17 @@ fun ControlButtonM3(onClick: () -> Unit, isActive: Boolean, activeIcon: ImageVec
 }
 
 // ==================== BOTTOM BAR BUTTON ====================
+/**
+ * Reusable button component for the bottom control bar.
+ * Displays an icon with a label underneath, with color states for active/inactive.
+ *
+ * @param onClick Callback when button is tapped
+ * @param icon Material icon to display
+ * @param label Text label shown under the icon
+ * @param isActive Whether the button is in active state (affects color)
+ * @param activeColor Color when button is active
+ * @param inactiveColor Color when button is inactive
+ */
 @Composable
 fun BottomBarButton(
     onClick: () -> Unit,
@@ -1268,6 +1633,30 @@ fun BottomBarButton(
 }
 
 // ==================== MORE OPTIONS BOTTOM SHEET ====================
+/**
+ * Bottom sheet containing additional options not shown in the main bottom bar.
+ *
+ * Features:
+ * - Quick reaction emojis (👍👏❤️😂😮🎉👎🔥)
+ * - Recording toggle
+ * - Whiteboard toggle
+ * - Live transcription with language selection dropdown
+ * - Waiting room access (host only)
+ * - Leave session button
+ *
+ * @param isRecording Current recording state
+ * @param showWhiteboard Whether whiteboard is visible
+ * @param showTranscription Whether transcription is enabled
+ * @param isHost Whether current user is host
+ * @param waitingRoomCount Number of users in waiting room
+ * @param selectedTranscriptionLanguage Currently selected caption language
+ * @param availableTranscriptionLanguages List of available languages
+ * @param onToggleRecording Callback to toggle recording
+ * @param onToggleTranscription Callback to toggle transcription
+ * @param onLeaveSession Callback to leave the session
+ * @param onSendReaction Callback to send a reaction emoji
+ * @param onSelectTranscriptionLanguage Callback when language is changed
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreOptionsBottomSheet(
@@ -1559,6 +1948,13 @@ fun MoreOptionItem(
     }
 }
 
+/**
+ * Circular button displaying a single emoji.
+ * Used in the quick reactions section of More Options.
+ *
+ * @param emoji The emoji string to display
+ * @param onClick Callback when the emoji is tapped
+ */
 @Composable
 fun EmojiButton(emoji: String, onClick: () -> Unit) {
     Surface(
@@ -1574,6 +1970,19 @@ fun EmojiButton(emoji: String, onClick: () -> Unit) {
 }
 
 // ==================== PARTICIPANTS BOTTOM SHEET ====================
+/**
+ * Bottom sheet showing all participants in the session.
+ *
+ * Displays:
+ * - Header with total participant count
+ * - Current user (You) with host badge if applicable
+ * - List of remote participants with their avatars
+ *
+ * @param participantCount Total number of participants
+ * @param displayName Current user's display name
+ * @param isHost Whether current user is the host
+ * @param remoteParticipants List of other participants' names
+ */
 @Composable
 fun ParticipantsBottomSheet(
     participantCount: Int,
@@ -1685,6 +2094,22 @@ fun ParticipantsBottomSheet(
     }
 }
 
+/**
+ * Full-screen video tile showing the current user's camera feed or avatar.
+ *
+ * When video is ON:
+ * - Displays Zoom SDK video view using AndroidView interop
+ * - Shows camera feed in portrait mode
+ * - Overlays user name at the bottom
+ *
+ * When video is OFF:
+ * - Shows centered avatar with user's initial
+ * - Displays user name and mute status
+ *
+ * @param displayName User's display name
+ * @param isVideoOn Whether camera is currently on
+ * @param isMuted Whether microphone is muted (for status display)
+ */
 @Composable
 fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean) {
     Box(
@@ -1790,6 +2215,12 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean) {
     }
 }
 
+/**
+ * Small colored chip displaying status text (e.g., "Host", "Muted").
+ *
+ * @param text The status text to display
+ * @param color The color for the chip (background uses alpha 0.2)
+ */
 @Composable
 fun StatusChip(text: String, color: Color) {
     Surface(color = color.copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp)) {
@@ -1798,6 +2229,20 @@ fun StatusChip(text: String, color: Color) {
 }
 
 // ==================== CHAT BOTTOM SHEET ====================
+/**
+ * Chat interface bottom sheet with message list and input field.
+ *
+ * Features:
+ * - Scrollable message list with auto-scroll to latest
+ * - Message bubbles positioned left (received) or right (sent)
+ * - Long-press on messages to add emoji reactions
+ * - Reaction display on messages
+ * - Text input with send button
+ *
+ * @param messages List of chat messages to display
+ * @param onSendMessage Callback when user sends a message
+ * @param onReactionClick Callback when user adds reaction (messageId, emoji)
+ */
 @Composable
 fun ChatBottomSheetContent(
     messages: List<ChatMessage>,
@@ -1850,6 +2295,20 @@ fun ChatBottomSheetContent(
         }
     }
 }
+
+/**
+ * Individual chat message bubble component.
+ *
+ * Features:
+ * - Different styling for sent vs received messages
+ * - Sender name displayed for received messages
+ * - Long-press to show reaction picker (👍❤️😂😮👏)
+ * - Reactions displayed at top of message bubble
+ * - Formatted timestamp
+ *
+ * @param message The ChatMessage data to display
+ * @param onReactionClick Callback when a reaction is selected (messageId, emoji)
+ */
 //@Preview(showBackground = true)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1951,6 +2410,20 @@ fun ChatMessageBubble(
 }
 
 // ==================== WHITEBOARD BOTTOM SHEET ====================
+/**
+ * Interactive whiteboard/drawing canvas bottom sheet.
+ *
+ * Features:
+ * - Freehand drawing on a white canvas
+ * - Color picker with 6 colors (Black, Red, Blue, Green, Orange, Purple)
+ * - Clear button to erase all drawings
+ * - Touch gesture support for drawing paths
+ *
+ * State:
+ * - paths: List of completed drawing paths
+ * - currentPath: The path currently being drawn
+ * - selectedColor: Currently selected drawing color
+ */
 @Composable
 fun WhiteboardBottomSheetContent() {
     var paths by remember { mutableStateOf(listOf<DrawingPath>()) }
@@ -1992,6 +2465,19 @@ fun WhiteboardBottomSheetContent() {
 }
 
 // ==================== TRANSCRIPTION BOTTOM SHEET ====================
+/**
+ * Live transcription/captions bottom sheet with controls.
+ *
+ * Features:
+ * - Enable/disable toggle for transcription
+ * - Language selection dropdown for translation
+ * - Scrollable list of transcription messages
+ * - Auto-scroll to latest message
+ *
+ * @param messages List of TranscriptionMessage objects
+ * @param isEnabled Whether transcription is currently enabled
+ * @param onToggleEnabled Callback to toggle transcription on/off
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptionBottomSheetContent(messages: List<TranscriptionMessage>, isEnabled: Boolean, onToggleEnabled: () -> Unit) {
@@ -2287,6 +2773,17 @@ fun ReactionsBottomSheetContent(onSendReaction: (String) -> Unit, onDismiss: () 
 
 // ==================== REACTION BUBBLE OVERLAY ====================
 
+/**
+ * Persistent raised hand indicator bubble.
+ * Unlike regular reactions, raised hands stay visible until lowered.
+ *
+ * Displays:
+ * - ✋ emoji
+ * - Sender's first name
+ * - Orange background with shadow
+ *
+ * @param reaction The ReactionEmoji data with isRaiseHand = true
+ */
 // Raised hand - persistent, no animation
 @Composable
 fun RaisedHandBubble(reaction: ReactionEmoji) {
@@ -2307,6 +2804,17 @@ fun RaisedHandBubble(reaction: ReactionEmoji) {
     }
 }
 
+/**
+ * Animated reaction bubble that floats up and fades out.
+ * Mimics Google Meet's reaction animation style.
+ *
+ * Animation:
+ * - Starts at bottom, floats up 300dp over 3 seconds
+ * - Fades out during the last 30% of animation
+ * - Scales down slightly as it rises (1.0 -> 0.8)
+ *
+ * @param reaction The ReactionEmoji data to animate
+ */
 // Regular reaction - animated, floats up from bottom and fades out at top like Google Meet
 @Composable
 fun AnimatedReactionBubble(reaction: ReactionEmoji) {
@@ -2363,6 +2871,12 @@ fun AnimatedReactionBubble(reaction: ReactionEmoji) {
     }
 }
 
+/**
+ * Legacy reaction bubble without animation.
+ * Kept for backwards compatibility.
+ *
+ * @param reaction The ReactionEmoji data to display
+ */
 // Legacy - keeping for compatibility
 @Composable
 fun ReactionBubble(reaction: ReactionEmoji) {
@@ -2384,6 +2898,18 @@ fun ReactionBubble(reaction: ReactionEmoji) {
 }
 
 // ==================== WAITING ROOM BUTTON WITH BADGE ====================
+/**
+ * Button for accessing the waiting room with a notification badge.
+ * Only visible to hosts.
+ *
+ * Features:
+ * - Lock icon that changes when active
+ * - Red badge showing number of waiting users (shows "9+" for > 9)
+ *
+ * @param onClick Callback when button is tapped
+ * @param isActive Whether waiting room sheet is currently open
+ * @param waitingCount Number of users in the waiting room
+ */
 @Composable
 fun WaitingRoomButton(
     onClick: () -> Unit,
@@ -2430,6 +2956,20 @@ fun WaitingRoomButton(
 }
 
 // ==================== WAITING ROOM BOTTOM SHEET ====================
+/**
+ * Bottom sheet for managing waiting room users (host only).
+ *
+ * Features:
+ * - Header with waiting room count
+ * - "Admit All" button to let everyone in at once
+ * - List of waiting users with Admit/Remove buttons for each
+ * - Empty state when no one is waiting
+ *
+ * @param waitingRoomUsers List of users currently in waiting room
+ * @param onAdmitUser Callback to admit a specific user
+ * @param onRemoveUser Callback to remove a user without admitting
+ * @param onAdmitAll Callback to admit all waiting users
+ */
 @Composable
 fun WaitingRoomBottomSheetContent(
     waitingRoomUsers: List<WaitingRoomUser>,
