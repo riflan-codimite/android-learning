@@ -1474,8 +1474,21 @@ fun ZoomSessionScreen(
                     inactiveColor = Color.White
                 )
 
-                // Chat - Chat icon with unread indicator
-                Box {
+                // Chat - Chat icon with unread badge
+                BadgedBox(
+                    badge = {
+                        if (unreadMessageCount > 0) {
+                            Badge(containerColor = Color(0xFFE53935)) {
+                                Text(
+                                    text = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                ) {
                     BottomBarButton(
                         onClick = onToggleChat,
                         icon = Icons.Filled.Email,
@@ -1484,38 +1497,7 @@ fun ZoomSessionScreen(
                         activeColor = Color(0xFF0084FF),
                         inactiveColor = Color.White
                     )
-                    if (unreadMessageCount > 0) {
 
-
-                        val infiniteTransition = rememberInfiniteTransition(label = "unread")
-                        val alpha by infiniteTransition.animateFloat(
-                            initialValue = 1f,
-                            targetValue = 0.2f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(600),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "unread_alpha"
-                        )
-                        val countText = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString()
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(end = 2.dp, top = 2.dp)
-                                .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
-                                .graphicsLayer { this.alpha = alpha }
-                                .background(Color(0xFFE53935), CircleShape)
-                        ) {
-                            Text(
-                                text = countText,
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 3.dp)
-                            )
-                        }
-                    }
                 }
 
                 // More
