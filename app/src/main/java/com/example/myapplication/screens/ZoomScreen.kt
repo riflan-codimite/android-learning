@@ -32,9 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.zoom.JWTGenerator
-import com.example.myapplication.zoom.ZoomSDKHelper
-import com.example.myapplication.zoom.ZoomSessionActivity
+import com.yourcompany.zoomsession.JWTGenerator
+import com.yourcompany.zoomsession.ZoomSDKHelper
+import com.yourcompany.zoomsession.ZoomSessionActivity
 
 @Preview(showBackground = true)
 @Composable
