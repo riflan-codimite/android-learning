@@ -1,0 +1,100 @@
+package com.yourcompany.zoomsession.model
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+
+/**
+ * Data class representing a chat message in the Zoom session.
+ *
+ * @property id Unique identifier based on timestamp
+ * @property messageId UUID for tracking reactions to this message
+ * @property senderName Display name of the message sender
+ * @property message The actual text content of the message
+ * @property timestamp Unix timestamp when message was sent
+ * @property isFromMe True if current user sent this message (for UI positioning)
+ * @property reactions Map of emoji to list of userIds who reacted with that emoji
+ */
+data class ChatMessage(
+    val id: String = System.currentTimeMillis().toString(),
+    val messageId: String = java.util.UUID.randomUUID().toString(),
+    val senderName: String,
+    val message: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isFromMe: Boolean = false,
+    val reactions: Map<String, List<String>> = emptyMap()
+)
+
+/**
+ * Data class representing a live transcription/caption message.
+ *
+ * @property id Unique identifier based on timestamp
+ * @property speakerName Name of the person speaking
+ * @property originalText The transcribed text in the original spoken language
+ * @property translatedText Optional translated text if translation is enabled
+ * @property timestamp Unix timestamp when transcription was captured
+ */
+data class TranscriptionMessage(
+    val id: String = System.currentTimeMillis().toString(),
+    val speakerName: String,
+    val originalText: String,
+    val translatedText: String? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Data class representing a drawing path on the whiteboard.
+ *
+ * @property path The Compose Path object containing the drawing coordinates
+ * @property color Color of the stroke
+ * @property strokeWidth Width of the stroke in pixels
+ */
+data class DrawingPath(
+    val path: Path,
+    val color: Color,
+    val strokeWidth: Float
+)
+
+/**
+ * Data class representing a reaction emoji sent during the session.
+ *
+ * @property id Unique identifier based on timestamp
+ * @property emoji The emoji string (e.g., "👍", "✋")
+ * @property senderName Display name of who sent the reaction
+ * @property senderId User ID for tracking (to toggle raise hand)
+ * @property timestamp Unix timestamp when reaction was sent
+ * @property isRaiseHand True if this is a persistent raise hand (not auto-removed)
+ */
+data class ReactionEmoji(
+    val id: String = System.currentTimeMillis().toString(),
+    val emoji: String,
+    val senderName: String,
+    val senderId: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isRaiseHand: Boolean = false
+)
+
+/**
+ * Data class representing a breakout room/subsession.
+ *
+ * @property id Unique identifier for the subsession
+ * @property name Display name of the subsession (e.g., "Breakout Room 1")
+ * @property participantCount Number of participants in this subsession
+ */
+data class Subsession(
+    val id: String,
+    val name: String,
+    val participantCount: Int
+)
+
+/**
+ * Data class representing a user in the waiting room.
+ *
+ * @property id User's unique identifier
+ * @property name Display name of the waiting user
+ * @property timestamp When the user joined the waiting room
+ */
+data class WaitingRoomUser(
+    val id: String,
+    val name: String,
+    val timestamp: Long = System.currentTimeMillis()
+)

@@ -1,0 +1,53 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.yourcompany.zoomsession" >
+4
+5    <uses-sdk android:minSdkVersion="28" />
+6    <!-- Required permissions for Zoom Video SDK -->
+7    <uses-permission android:name="android.permission.INTERNET" />
+7-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:4:5-67
+7-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:4:22-64
+8    <uses-permission android:name="android.permission.CAMERA" />
+8-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:5:5-65
+8-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:5:22-62
+9    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+9-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:6:5-71
+9-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:6:22-68
+10    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+10-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:7:5-80
+10-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:7:22-77
+11    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+11-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:8:5-79
+11-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:8:22-76
+12
+13    <!-- Camera feature -->
+14    <uses-feature
+14-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:11:5-85
+15        android:name="android.hardware.camera"
+15-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:11:19-57
+16        android:required="false" />
+16-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:11:58-82
+17    <uses-feature
+17-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:12:5-95
+18        android:name="android.hardware.camera.autofocus"
+18-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:12:19-67
+19        android:required="false" />
+19-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:12:68-92
+20
+21    <application>
+21-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:14:5-21:19
+22
+23        <!-- Zoom Session Activity -->
+24        <activity
+24-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:16:9-20:52
+25            android:name="com.yourcompany.zoomsession.ZoomSessionActivity"
+25-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:17:13-75
+26            android:configChanges="orientation|screenSize|keyboardHidden"
+26-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:19:13-74
+27            android:exported="false"
+27-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:18:13-37
+28            android:screenOrientation="portrait" />
+28-->/Users/riflanahmed/Documents/android/zoomsession/src/main/AndroidManifest.xml:20:13-49
+29    </application>
+30
+31</manifest>
