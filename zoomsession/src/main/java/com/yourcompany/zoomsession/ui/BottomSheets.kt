@@ -738,3 +738,121 @@ fun ParticipantsBottomSheet(
         }
     }
 }
+
+// ==================== PREVIEWS ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun MoreOptionsBottomSheetPreview() {
+    MoreOptionsBottomSheet(
+        isRecording = false,
+        showWhiteboard = false,
+        showTranscription = true,
+        showSubsessions = false,
+        showReactions = true,
+        showWaitingRoom = false,
+        isHost = true,
+        waitingRoomCount = 3,
+        selectedTranscriptionLanguage = "English",
+        availableTranscriptionLanguages = listOf("English", "Spanish", "French", "German"),
+        onToggleRecording = {},
+        onToggleWhiteboard = {},
+        onToggleTranscription = {},
+        onToggleSubsessions = {},
+        onToggleReactions = {},
+        onToggleWaitingRoom = {},
+        onLeaveSession = {},
+        onSendReaction = {},
+        onSelectTranscriptionLanguage = {}
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun ChatBottomSheetContentPreview() {
+    val sampleMessages = listOf(
+        ChatMessage(
+            id = "1",
+            messageId = "msg1",
+            senderName = "Alice",
+            message = "Hello everyone!",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = false,
+            reactions = mapOf("👍" to listOf("Bob"))
+        ),
+        ChatMessage(
+            id = "2",
+            messageId = "msg2",
+            senderName = "Me",
+            message = "Hi Alice!",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true,
+            reactions = emptyMap()
+        ),
+        ChatMessage(
+            id = "3",
+            messageId = "msg3",
+            senderName = "Bob",
+            message = "Great to see you all!",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = false,
+            reactions = emptyMap()
+        )
+    )
+    ChatBottomSheetContent(
+        messages = sampleMessages,
+        onSendMessage = {},
+        onReactionClick = { _, _ -> }
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WhiteboardBottomSheetContentPreview() {
+    WhiteboardBottomSheetContent()
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun SubsessionsBottomSheetContentPreview() {
+    SubsessionsBottomSheetContent(isHost = true)
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun WaitingRoomBottomSheetContentPreview() {
+    val sampleUsers = listOf(
+        WaitingRoomUser("1", "John Doe", System.currentTimeMillis()),
+        WaitingRoomUser("2", "Jane Smith", System.currentTimeMillis())
+    )
+    WaitingRoomBottomSheetContent(
+        waitingRoomUsers = sampleUsers,
+        onAdmitUser = {},
+        onRemoveUser = {},
+        onAdmitAll = {}
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun WaitingRoomEmptyPreview() {
+    WaitingRoomBottomSheetContent(
+        waitingRoomUsers = emptyList(),
+        onAdmitUser = {},
+        onRemoveUser = {},
+        onAdmitAll = {}
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun ParticipantsBottomSheetPreview() {
+    ParticipantsBottomSheet(
+        participantCount = 4,
+        displayName = "John Doe",
+        isHost = true,
+        remoteParticipants = listOf("Alice", "Bob", "Charlie")
+    )
+}
+

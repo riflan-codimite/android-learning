@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yourcompany.zoomsession.model.ReactionEmoji
@@ -401,4 +402,178 @@ fun WaitingRoomOverlay(sessionName: String, onLeave: () -> Unit) {
             }
         }
     }
+}
+
+// ==================== PREVIEWS ====================
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun BottomBarButtonActivePreview() {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        BottomBarButton(
+            onClick = {},
+            icon = Icons.Filled.Notifications,
+            label = "Mute",
+            isActive = true,
+            activeColor = Color.White,
+            inactiveColor = ZoomColors.Error
+        )
+        BottomBarButton(
+            onClick = {},
+            icon = Icons.Filled.Notifications,
+            label = "Unmute",
+            isActive = false,
+            activeColor = Color.White,
+            inactiveColor = ZoomColors.Error
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun MoreOptionItemPreview() {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MoreOptionItem(
+            icon = Icons.Default.Star,
+            label = "Record",
+            isActive = false,
+            activeColor = ZoomColors.Error,
+            onClick = {}
+        )
+        MoreOptionItem(
+            icon = Icons.Default.Star,
+            label = "Recording",
+            isActive = true,
+            activeColor = ZoomColors.Error,
+            onClick = {}
+        )
+        MoreOptionItem(
+            icon = Icons.Default.Edit,
+            label = "Whiteboard",
+            isActive = true,
+            activeColor = ZoomColors.Orange,
+            onClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun EmojiButtonPreview() {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        EmojiButton(emoji = "👍", onClick = {})
+        EmojiButton(emoji = "❤️", onClick = {})
+        EmojiButton(emoji = "😂", onClick = {})
+        EmojiButton(emoji = "🎉", onClick = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun StatusChipPreview() {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        StatusChip(text = "Host", color = ZoomColors.Primary)
+        StatusChip(text = "Muted", color = ZoomColors.Error)
+        StatusChip(text = "Speaking", color = ZoomColors.Success)
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun RaisedHandBubblePreview() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        RaisedHandBubble(
+            reaction = ReactionEmoji(
+                emoji = "✋",
+                senderName = "John Doe",
+                senderId = "user123"
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun AnimatedReactionBubblePreview() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        AnimatedReactionBubble(
+            reaction = ReactionEmoji(
+                emoji = "👍",
+                senderName = "Alice Smith",
+                senderId = "alice456"
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun WaitingRoomButtonPreview() {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        WaitingRoomButton(
+            onClick = {},
+            isActive = false,
+            waitingCount = 0
+        )
+        WaitingRoomButton(
+            onClick = {},
+            isActive = true,
+            waitingCount = 3
+        )
+        WaitingRoomButton(
+            onClick = {},
+            isActive = true,
+            waitingCount = 12
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WaitingRoomUserCardPreview() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        WaitingRoomUserCard(
+            user = WaitingRoomUser(
+                id = "1",
+                name = "John Doe",
+                timestamp = System.currentTimeMillis()
+            ),
+            onAdmit = {},
+            onRemove = {}
+        )
+        Spacer(Modifier.height(8.dp))
+        WaitingRoomUserCard(
+            user = WaitingRoomUser(
+                id = "2",
+                name = "Jane Smith",
+                timestamp = System.currentTimeMillis()
+            ),
+            onAdmit = {},
+            onRemove = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun WaitingRoomOverlayPreview() {
+    WaitingRoomOverlay(
+        sessionName = "Team Standup Meeting",
+        onLeave = {}
+    )
 }

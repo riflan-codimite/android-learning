@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -286,7 +287,7 @@ fun ZoomSessionScreen(
                 if (isHost) {
                     BottomBarButton(
                         onClick = onToggleMute,
-                        icon = if (isMuted) Icons.Outlined.Notifications else Icons.Filled.Notifications,
+                        icon = if (isMuted) Icons.Outlined.Mic else Icons.Outlined.MicOff,
                         label = if (isMuted) "Unmute" else "Mute",
                         isActive = !isMuted,
                         activeColor = Color.White,
@@ -295,7 +296,7 @@ fun ZoomSessionScreen(
 
                     BottomBarButton(
                         onClick = onToggleVideo,
-                        icon = if (isVideoOn) Icons.Filled.PlayArrow else Icons.Outlined.PlayArrow,
+                        icon = if (isVideoOn) Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
                         label = if (isVideoOn) "Stop Video" else "Start Video",
                         isActive = isVideoOn,
                         activeColor = Color.White,
@@ -304,7 +305,7 @@ fun ZoomSessionScreen(
 
                     BottomBarButton(
                         onClick = { },
-                        icon = Icons.Filled.Share,
+                        icon = Icons.Outlined.ScreenShare,
                         label = "Share",
                         isActive = false,
                         activeColor = ZoomColors.Success,
@@ -328,7 +329,7 @@ fun ZoomSessionScreen(
                 ) {
                     BottomBarButton(
                         onClick = onToggleChat,
-                        icon = Icons.Filled.Email,
+                        icon = Icons.Filled.ChatBubbleOutline,
                         label = "Chat",
                         isActive = showChat,
                         activeColor = ZoomColors.Primary,
@@ -339,21 +340,14 @@ fun ZoomSessionScreen(
                 if (isHost) {
                     BottomBarButton(
                         onClick = { showMore = true },
-                        icon = Icons.Default.MoreVert,
+                        icon = Icons.Default.MoreHoriz,
                         label = "More",
                         isActive = false,
                         activeColor = Color.White,
                         inactiveColor = Color.White
                     )
                 } else {
-                    BottomBarButton(
-                        onClick = { onSendReaction("✋") },
-                        icon = Icons.Default.ThumbUp,
-                        label = if (raisedHands.any { it.senderId == displayName }) "Lower" else "Raise",
-                        isActive = raisedHands.any { it.senderId == displayName },
-                        activeColor = ZoomColors.Warning,
-                        inactiveColor = Color.White
-                    )
+
                 }
             }
         }
@@ -571,4 +565,158 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
             }
         }
     }
+}
+
+// ==================== PREVIEWS ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun ZoomSessionScreenHostPreview() {
+    ZoomSessionScreen(
+        sessionName = "Team Standup",
+        displayName = "John Doe",
+        isInSession = true,
+        isMuted = false,
+        isVideoOn = false,
+        statusMessage = "Connected",
+        participantCount = 5,
+        remoteParticipants = listOf("Alice", "Bob", "Charlie", "Diana"),
+        isHost = true,
+        showChat = false,
+        showWhiteboard = false,
+        showTranscription = true,
+        showSubsessions = false,
+        showReactions = true,
+        showWaitingRoom = false,
+        isInWaitingRoom = false,
+        isTranscriptionEnabled = true,
+        isRecording = true,
+        selectedTranscriptionLanguage = "English",
+        availableTranscriptionLanguages = listOf("English", "Spanish", "French"),
+        unreadMessageCount = 3,
+        chatMessages = emptyList(),
+        transcriptionMessages = listOf(
+            TranscriptionMessage(
+                speakerName = "Alice",
+                originalText = "Hello everyone, let's start the meeting.",
+                translatedText = null
+            )
+        ),
+        activeReactions = listOf(
+            ReactionEmoji(emoji = "👍", senderName = "Bob", senderId = "bob123"),
+            ReactionEmoji(emoji = "❤️", senderName = "Charlie", senderId = "charlie456")
+        ),
+        raisedHands = listOf(
+            ReactionEmoji(emoji = "✋", senderName = "Diana", senderId = "diana789")
+        ),
+        hostNotification = null,
+        waitingRoomUsers = listOf(
+            WaitingRoomUser(id = "1", name = "Eve", timestamp = System.currentTimeMillis())
+        ),
+        onToggleMute = {},
+        onToggleVideo = {},
+        onToggleChat = {},
+        onToggleWhiteboard = {},
+        onToggleTranscription = {},
+        onToggleSubsessions = {},
+        onToggleReactions = {},
+        onToggleWaitingRoom = {},
+        onToggleTranscriptionEnabled = {},
+        onToggleRecording = {},
+        onSendReaction = {},
+        onAdmitUser = {},
+        onRemoveFromWaitingRoom = {},
+        onAdmitAllUsers = {},
+        onSendMessage = {},
+        onChatReaction = { _, _ -> },
+        onLeaveSession = {},
+        onSelectTranscriptionLanguage = {}
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun ZoomSessionScreenParticipantPreview() {
+    ZoomSessionScreen(
+        sessionName = "Project Review",
+        displayName = "Jane Smith",
+        isInSession = true,
+        isMuted = true,
+        isVideoOn = false,
+        statusMessage = "Connected",
+        participantCount = 3,
+        remoteParticipants = listOf("Host User", "Other Participant"),
+        isHost = false,
+        showChat = false,
+        showWhiteboard = false,
+        showTranscription = false,
+        showSubsessions = false,
+        showReactions = false,
+        showWaitingRoom = false,
+        isInWaitingRoom = false,
+        isTranscriptionEnabled = false,
+        isRecording = false,
+        selectedTranscriptionLanguage = "English",
+        availableTranscriptionLanguages = listOf("English"),
+        unreadMessageCount = 0,
+        chatMessages = emptyList(),
+        transcriptionMessages = emptyList(),
+        activeReactions = emptyList(),
+        raisedHands = emptyList(),
+        hostNotification = null,
+        waitingRoomUsers = emptyList(),
+        onToggleMute = {},
+        onToggleVideo = {},
+        onToggleChat = {},
+        onToggleWhiteboard = {},
+        onToggleTranscription = {},
+        onToggleSubsessions = {},
+        onToggleReactions = {},
+        onToggleWaitingRoom = {},
+        onToggleTranscriptionEnabled = {},
+        onToggleRecording = {},
+        onSendReaction = {},
+        onAdmitUser = {},
+        onRemoveFromWaitingRoom = {},
+        onAdmitAllUsers = {},
+        onSendMessage = {},
+        onChatReaction = { _, _ -> },
+        onLeaveSession = {},
+        onSelectTranscriptionLanguage = {}
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun SelfVideoTileVideoOffPreview() {
+    SelfVideoTile(
+        displayName = "John Doe",
+        isVideoOn = false,
+        isMuted = true,
+        isHost = true
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun SelfVideoTileVideoOnPreview() {
+    SelfVideoTile(
+        displayName = "John Doe",
+        isVideoOn = true,
+        isMuted = false,
+        isHost = true
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun SelfVideoTileParticipantPreview() {
+    SelfVideoTile(
+        displayName = "Participant",
+        isVideoOn = false,
+        isMuted = true,
+        isHost = false
+    )
 }
