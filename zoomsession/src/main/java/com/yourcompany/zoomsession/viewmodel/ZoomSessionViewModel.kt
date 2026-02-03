@@ -6,10 +6,7 @@ import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.yourcompany.zoomsession.model.ChatMessage
-import com.yourcompany.zoomsession.model.ReactionEmoji
-import com.yourcompany.zoomsession.model.TranscriptionMessage
-import com.yourcompany.zoomsession.model.WaitingRoomUser
+import com.yourcompany.zoomsession.model.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import us.zoom.sdk.*
@@ -58,7 +55,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var isVideoOn = mutableStateOf(false)
     var statusMessage = mutableStateOf("Connecting...")
     var participantCount = mutableStateOf(0)
-    var remoteParticipants = mutableStateOf(listOf<String>())
+    var remoteParticipants = mutableStateOf(listOf<Participant>())
     var showChat = mutableStateOf(false)
     var unreadMessageCount = mutableStateOf(0)
     var showWhiteboard = mutableStateOf(false)
@@ -86,6 +83,8 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var raisedHands = mutableStateOf(listOf<ReactionEmoji>())
     var hostNotification = mutableStateOf<String?>(null)
     var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())
+    var unmuteRequest = mutableStateOf<String?>(null)
+    var isHostSharing = mutableStateOf(false)
 
     // ==================== ZOOM SDK EVENT LISTENER ====================
     val zoomListener = object : ZoomVideoSDKDelegate {
@@ -191,6 +190,12 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                                 hostNotification.value = "✋ $userName raised hand"
                             }
                         }
+                        "unmute_request" -> {
+                            if (isHost) {
+                                val userName = json.optString("userName", "Someone")
+                                unmuteRequest.value = userName
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse command: ${e.message}")
@@ -237,7 +242,13 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         // Required empty implementations
         override fun onUserVideoStatusChanged(videoHelper: ZoomVideoSDKVideoHelper?, userList: MutableList<ZoomVideoSDKUser>?) {}
         override fun onUserAudioStatusChanged(audioHelper: ZoomVideoSDKAudioHelper?, userList: MutableList<ZoomVideoSDKUser>?) {}
-        override fun onUserShareStatusChanged(shareHelper: ZoomVideoSDKShareHelper?, userInfo: ZoomVideoSDKUser?, status: ZoomVideoSDKShareStatus?) {}
+        override fun onUserShareStatusChanged(shareHelper: ZoomVideoSDKShareHelper?, userInfo: ZoomVideoSDKUser?, status: ZoomVideoSDKShareStatus?) {
+            val session = sdk.session ?: return
+            val hostUser = session.sessionHost
+            if (userInfo != null && hostUser != null && userInfo.userID == hostUser.userID) {
+                isHostSharing.value = status == ZoomVideoSDKShareStatus.ZoomVideoSDKShareStatus_Start
+            }
+        }
         override fun onUserShareStatusChanged(shareHelper: ZoomVideoSDKShareHelper?, userInfo: ZoomVideoSDKUser?, shareAction: ZoomVideoSDKShareAction?) {}
         override fun onLiveStreamStatusChanged(liveStreamHelper: ZoomVideoSDKLiveStreamHelper?, status: ZoomVideoSDKLiveStreamStatus?) {}
         override fun onUserHostChanged(userHelper: ZoomVideoSDKUserHelper?, userInfo: ZoomVideoSDKUser?) {}
@@ -502,7 +513,33 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     private fun updateParticipantCount() {
         val remoteUsers = sdk.session?.remoteUsers
         participantCount.value = (remoteUsers?.size ?: 0) + 1
-        remoteParticipants.value = remoteUsers?.mapNotNull { it.userName } ?: emptyList()
+        remoteParticipants.value = remoteUsers?.mapNotNull { user ->
+            user.userName?.let { name ->
+                val role = when {
+                    user == sdk.session?.sessionHost -> ParticipantRole.HOST
+                    else -> ParticipantRole.PARTICIPANT
+                }
+                Participant(
+                    id = user.userID ?: name,
+                    name = name,
+                    role = role,
+                    isMuted = user.audioStatus?.isMuted != false
+                )
+            }
+        } ?: emptyList()
+    }
+
+    fun toggleParticipantMute(participantId: String) {
+        val remoteUser = sdk.session?.remoteUsers?.firstOrNull {
+            (it.userID ?: it.userName) == participantId
+        } ?: return
+        val isMuted = remoteUser.audioStatus?.isMuted != false
+        if (isMuted) {
+            sdk.audioHelper?.unMuteAudio(remoteUser)
+        } else {
+            sdk.audioHelper?.muteAudio(remoteUser)
+        }
+        updateParticipantCount()
     }
 
     // ==================== WAITING ROOM MANAGEMENT ====================
@@ -590,5 +627,30 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send toggle video command: ${e.message}")
         }
+    }
+
+    // ==================== UNMUTE REQUEST ====================
+
+    fun sendUnmuteRequest() {
+        try {
+            val command = org.json.JSONObject().apply {
+                put("type", "unmute_request")
+                put("userName", displayName)
+            }.toString()
+            sdk.cmdChannel?.sendCommand(null, command)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send unmute request: ${e.message}")
+        }
+    }
+
+    fun approveUnmuteRequest(userName: String) {
+        val remoteUsers = sdk.session?.remoteUsers ?: return
+        val user = remoteUsers.find { it.userName == userName }
+        user?.let { sdk.audioHelper?.unMuteAudio(it) }
+        unmuteRequest.value = null
+    }
+
+    fun dismissUnmuteRequest() {
+        unmuteRequest.value = null
     }
 }

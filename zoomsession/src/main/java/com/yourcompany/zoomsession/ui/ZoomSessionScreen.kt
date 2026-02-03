@@ -19,10 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.yourcompany.zoomsession.model.ChatMessage
-import com.yourcompany.zoomsession.model.ReactionEmoji
-import com.yourcompany.zoomsession.model.TranscriptionMessage
-import com.yourcompany.zoomsession.model.WaitingRoomUser
+import com.yourcompany.zoomsession.model.*
 import us.zoom.sdk.ZoomVideoSDK
 import us.zoom.sdk.ZoomVideoSDKVideoAspect
 import us.zoom.sdk.ZoomVideoSDKVideoView
@@ -47,8 +44,10 @@ fun ZoomSessionScreen(
     isVideoOn: Boolean,
     statusMessage: String,
     participantCount: Int,
-    remoteParticipants: List<String>,
+    remoteParticipants: List<Participant>,
     isHost: Boolean,
+    hostRole: ParticipantRole = ParticipantRole.HOST,
+    hostImageUrl: String? = null,
     showChat: Boolean,
     showWhiteboard: Boolean,
     showTranscription: Boolean,
@@ -84,8 +83,14 @@ fun ZoomSessionScreen(
     onAdmitAllUsers: () -> Unit,
     onSendMessage: (String) -> Unit,
     onChatReaction: (String, String) -> Unit,
+    onToggleParticipantMute: (String) -> Unit,
     onLeaveSession: () -> Unit,
-    onSelectTranscriptionLanguage: (String) -> Unit
+    onSelectTranscriptionLanguage: (String) -> Unit,
+    onRequestUnmute: () -> Unit = {},
+    unmuteRequest: String? = null,
+    onApproveUnmuteRequest: (String) -> Unit = {},
+    onDismissUnmuteRequest: () -> Unit = {},
+    isHostSharing: Boolean = false
 ) {
     val chatSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val whiteboardSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -101,7 +106,7 @@ fun ZoomSessionScreen(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         // Video tile - FULL SCREEN
-        SelfVideoTile(displayName, isVideoOn, isMuted, isHost)
+        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing)
 
         // Recording indicator
         if (isRecording) {
@@ -269,38 +274,44 @@ fun ZoomSessionScreen(
             }
         }
 
-        // Bottom controls
-        Surface(
+        // Bottom controls - Material 3 styled
+        Column(
             Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding(),
-            color = Color.Black.copy(alpha = 0.8f),
+                .background(Color.Black)
         ) {
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.1f),
+                thickness = 0.5.dp
+            )
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                    .background(Color.Black)
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isHost) {
                     BottomBarButton(
                         onClick = onToggleMute,
-                        icon = if (isMuted) Icons.Outlined.Mic else Icons.Outlined.MicOff,
+                        icon = if (isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
                         label = if (isMuted) "Unmute" else "Mute",
                         isActive = !isMuted,
                         activeColor = Color.White,
-                        inactiveColor = ZoomColors.Error
+                        inactiveColor = ZoomColors.Error,
+                        modifier = Modifier.weight(1f)
                     )
 
                     BottomBarButton(
                         onClick = onToggleVideo,
                         icon = if (isVideoOn) Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
-                        label = if (isVideoOn) "Stop Video" else "Start Video",
+                        label = if (isVideoOn) "Stop" else "Video",
                         isActive = isVideoOn,
                         activeColor = Color.White,
-                        inactiveColor = ZoomColors.Error
+                        inactiveColor = ZoomColors.Error,
+                        modifier = Modifier.weight(1f)
                     )
 
                     BottomBarButton(
@@ -309,47 +320,124 @@ fun ZoomSessionScreen(
                         label = "Share",
                         isActive = false,
                         activeColor = ZoomColors.Success,
-                        inactiveColor = Color.White
+                        inactiveColor = Color.White,
+                        modifier = Modifier.weight(1f)
                     )
-                }
 
-                BadgedBox(
-                    badge = {
-                        if (unreadMessageCount > 0) {
-                            Badge(containerColor = ZoomColors.Error) {
-                                Text(
-                                    text = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
-                                    color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadMessageCount > 0) {
+                                    Badge(
+                                        containerColor = ZoomColors.Error,
+                                        modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
+                        ) {
+                            BottomBarButton(
+                                onClick = onToggleChat,
+                                icon = Icons.Outlined.Chat,
+                                label = "Chat",
+                                isActive = showChat,
+                                activeColor = ZoomColors.Primary,
+                                inactiveColor = Color.White
+                            )
                         }
                     }
-                ) {
-                    BottomBarButton(
-                        onClick = onToggleChat,
-                        icon = Icons.Filled.ChatBubbleOutline,
-                        label = "Chat",
-                        isActive = showChat,
-                        activeColor = ZoomColors.Primary,
-                        inactiveColor = Color.White
-                    )
-                }
 
-                if (isHost) {
                     BottomBarButton(
                         onClick = { showMore = true },
                         icon = Icons.Default.MoreHoriz,
                         label = "More",
                         isActive = false,
                         activeColor = Color.White,
-                        inactiveColor = Color.White
+                        inactiveColor = Color.White,
+                        modifier = Modifier.weight(1f)
                     )
                 } else {
+                    // Participant view - mute, chat, raise hand, and more
+                    BottomBarButton(
+                        onClick = {
+                            if (isMuted) onRequestUnmute() else onToggleMute()
+                        },
+                        icon = if (isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
+                        label = if (isMuted) "Unmute" else "Mute",
+                        isActive = !isMuted,
+                        activeColor = Color.White,
+                        inactiveColor = ZoomColors.Error,
+                        modifier = Modifier.weight(1f)
+                    )
 
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadMessageCount > 0) {
+                                    Badge(
+                                        containerColor = ZoomColors.Error,
+                                        modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            BottomBarButton(
+                                onClick = onToggleChat,
+                                icon = Icons.Outlined.Chat,
+                                label = "Chat",
+                                isActive = showChat,
+                                activeColor = ZoomColors.Primary,
+                                inactiveColor = Color.White
+                            )
+                        }
+                    }
+
+                    BottomBarButton(
+                        onClick = { onSendReaction("✋") },
+                        icon = Icons.Outlined.PanTool,
+                        label = "Raise",
+                        isActive = raisedHands.any { it.senderId == displayName },
+                        activeColor = ZoomColors.Warning,
+                        inactiveColor = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    BottomBarButton(
+                        onClick = { showMore = true },
+                        icon = Icons.Default.MoreHoriz,
+                        label = "More",
+                        isActive = false,
+                        activeColor = Color.White,
+                        inactiveColor = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
+            // Navigation bar spacer with black background
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            )
         }
     }
 
@@ -361,28 +449,57 @@ fun ZoomSessionScreen(
             containerColor = ZoomColors.DarkSurface,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
-            MoreOptionsBottomSheet(
-                isRecording = isRecording,
-                showWhiteboard = showWhiteboard,
-                showTranscription = showTranscription,
-                showSubsessions = showSubsessions,
-                showReactions = showReactions,
-                showWaitingRoom = showWaitingRoom,
-                isHost = isHost,
-                waitingRoomCount = waitingRoomUsers.size,
-                selectedTranscriptionLanguage = selectedTranscriptionLanguage,
-                availableTranscriptionLanguages = availableTranscriptionLanguages,
-                onToggleRecording = { onToggleRecording(); showMore = false },
-                onToggleWhiteboard = { onToggleWhiteboard(); showMore = false },
-                onToggleTranscription = { onToggleTranscription(); if (!isTranscriptionEnabled) onToggleTranscriptionEnabled(); showMore = false },
-                onToggleSubsessions = { onToggleSubsessions(); showMore = false },
-                onToggleReactions = { onToggleReactions(); showMore = false },
-                onToggleWaitingRoom = { onToggleWaitingRoom(); showMore = false },
-                onLeaveSession = onLeaveSession,
-                onSendReaction = { emoji -> onSendReaction(emoji); showMore = false },
-                onSelectTranscriptionLanguage = onSelectTranscriptionLanguage
-            )
+            if (isHost) {
+                MoreOptionsBottomSheet(
+                    isRecording = isRecording,
+                    showWhiteboard = showWhiteboard,
+                    showTranscription = showTranscription,
+                    showSubsessions = showSubsessions,
+                    showReactions = showReactions,
+                    showWaitingRoom = showWaitingRoom,
+                    isHost = isHost,
+                    waitingRoomCount = waitingRoomUsers.size,
+                    selectedTranscriptionLanguage = selectedTranscriptionLanguage,
+                    availableTranscriptionLanguages = availableTranscriptionLanguages,
+                    onToggleRecording = { onToggleRecording(); showMore = false },
+                    onToggleWhiteboard = { onToggleWhiteboard(); showMore = false },
+                    onToggleTranscription = { onToggleTranscription(); if (!isTranscriptionEnabled) onToggleTranscriptionEnabled(); showMore = false },
+                    onToggleSubsessions = { onToggleSubsessions(); showMore = false },
+                    onToggleReactions = { onToggleReactions(); showMore = false },
+                    onToggleWaitingRoom = { onToggleWaitingRoom(); showMore = false },
+                    onLeaveSession = onLeaveSession,
+                    onSendReaction = { emoji -> onSendReaction(emoji); showMore = false },
+                    onSelectTranscriptionLanguage = onSelectTranscriptionLanguage
+                )
+            } else {
+                ParticipantMoreOptionsBottomSheet(
+                    selectedTranscriptionLanguage = selectedTranscriptionLanguage,
+                    availableTranscriptionLanguages = availableTranscriptionLanguages,
+                    onSendReaction = { emoji -> onSendReaction(emoji); showMore = false },
+                    onSelectTranscriptionLanguage = onSelectTranscriptionLanguage,
+                    onLeaveSession = onLeaveSession
+                )
+            }
         }
+    }
+
+    // Unmute Request Dialog (Host only)
+    if (unmuteRequest != null) {
+        AlertDialog(
+            onDismissRequest = onDismissUnmuteRequest,
+            title = { Text("Unmute Request") },
+            text = { Text("$unmuteRequest is requesting to unmute their microphone.") },
+            confirmButton = {
+                TextButton(onClick = { onApproveUnmuteRequest(unmuteRequest) }) {
+                    Text("Accept")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissUnmuteRequest) {
+                    Text("Decline")
+                }
+            }
+        )
     }
 
     // Participants Bottom Sheet
@@ -397,7 +514,10 @@ fun ZoomSessionScreen(
                 participantCount = participantCount,
                 displayName = displayName,
                 isHost = isHost,
-                remoteParticipants = remoteParticipants
+                hostRole = hostRole,
+                hostImageUrl = hostImageUrl,
+                remoteParticipants = remoteParticipants,
+                onToggleParticipantMute = onToggleParticipantMute
             )
         }
     }
@@ -448,7 +568,7 @@ fun ZoomSessionScreen(
  * Host sees own camera; participant always sees host's camera.
  */
 @Composable
-fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true) {
+fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -478,6 +598,34 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                 },
                 onRelease = { view ->
                     ZoomVideoSDK.getInstance().session?.mySelf?.videoCanvas?.unSubscribe(view)
+                }
+            )
+        } else if (!isHost && isHostSharing) {
+            // Show host's shared screen
+            AndroidView(
+                factory = { context ->
+                    ZoomVideoSDKVideoView(context).apply {
+                        val session = ZoomVideoSDK.getInstance().session
+                        val hostUser = session?.sessionHost ?: session?.remoteUsers?.firstOrNull()
+                        hostUser?.shareActionList?.firstOrNull()?.shareCanvas?.subscribe(
+                            this,
+                            ZoomVideoSDKVideoAspect.ZoomVideoSDKVideoAspect_Original
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { view ->
+                    val session = ZoomVideoSDK.getInstance().session
+                    val hostUser = session?.sessionHost ?: session?.remoteUsers?.firstOrNull()
+                    hostUser?.shareActionList?.firstOrNull()?.shareCanvas?.subscribe(
+                        view,
+                        ZoomVideoSDKVideoAspect.ZoomVideoSDKVideoAspect_Original
+                    )
+                },
+                onRelease = { view ->
+                    val session = ZoomVideoSDK.getInstance().session
+                    val hostUser = session?.sessionHost ?: session?.remoteUsers?.firstOrNull()
+                    hostUser?.shareActionList?.firstOrNull()?.shareCanvas?.unSubscribe(view)
                 }
             )
         } else if (!isHost) {
@@ -581,7 +729,12 @@ private fun ZoomSessionScreenHostPreview() {
         isVideoOn = false,
         statusMessage = "Connected",
         participantCount = 5,
-        remoteParticipants = listOf("Alice", "Bob", "Charlie", "Diana"),
+        remoteParticipants = listOf(
+            Participant(id = "1", name = "Alice", role = ParticipantRole.PARTICIPANT),
+            Participant(id = "2", name = "Bob", role = ParticipantRole.MANAGER),
+            Participant(id = "3", name = "Charlie", role = ParticipantRole.PARTICIPANT),
+            Participant(id = "4", name = "Diana", role = ParticipantRole.GUEST)
+        ),
         isHost = true,
         showChat = false,
         showWhiteboard = false,
@@ -628,6 +781,7 @@ private fun ZoomSessionScreenHostPreview() {
         onAdmitUser = {},
         onRemoveFromWaitingRoom = {},
         onAdmitAllUsers = {},
+        onToggleParticipantMute = {},
         onSendMessage = {},
         onChatReaction = { _, _ -> },
         onLeaveSession = {},
@@ -647,7 +801,10 @@ private fun ZoomSessionScreenParticipantPreview() {
         isVideoOn = false,
         statusMessage = "Connected",
         participantCount = 3,
-        remoteParticipants = listOf("Host User", "Other Participant"),
+        remoteParticipants = listOf(
+            Participant(id = "1", name = "Host User", role = ParticipantRole.HOST),
+            Participant(id = "2", name = "Other Participant", role = ParticipantRole.PARTICIPANT)
+        ),
         isHost = false,
         showChat = false,
         showWhiteboard = false,
@@ -681,10 +838,16 @@ private fun ZoomSessionScreenParticipantPreview() {
         onAdmitUser = {},
         onRemoveFromWaitingRoom = {},
         onAdmitAllUsers = {},
+        onToggleParticipantMute = {},
         onSendMessage = {},
         onChatReaction = { _, _ -> },
         onLeaveSession = {},
-        onSelectTranscriptionLanguage = {}
+        onSelectTranscriptionLanguage = {},
+        onRequestUnmute = {},
+        unmuteRequest = null,
+        onApproveUnmuteRequest = {},
+        onDismissUnmuteRequest = {},
+        isHostSharing = false
     )
 }
 

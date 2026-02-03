@@ -31,7 +31,7 @@ import com.yourcompany.zoomsession.model.WaitingRoomUser
 
 /**
  * Reusable button component for the bottom control bar.
- * Displays an icon with a label underneath, with color states for active/inactive.
+ * Material 3 styled with icon and label, proper touch targets.
  */
 @Composable
 fun BottomBarButton(
@@ -40,27 +40,46 @@ fun BottomBarButton(
     label: String,
     isActive: Boolean,
     activeColor: Color,
-    inactiveColor: Color
+    inactiveColor: Color,
+    modifier: Modifier = Modifier
 ) {
+    val buttonColor = if (isActive) activeColor else inactiveColor
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+        modifier = modifier
+            .widthIn(min = 64.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = if (isActive) activeColor else inactiveColor,
-            modifier = Modifier.size(24.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(
+                    if (!isActive && inactiveColor == ZoomColors.Error)
+                        ZoomColors.Error.copy(alpha = 0.15f)
+                    else
+                        Color.Transparent
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = buttonColor,
+                modifier = Modifier.size(28.dp)
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Text(
             label,
-            color = if (isActive) activeColor else inactiveColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium
+            color = buttonColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            maxLines = 1
         )
     }
 }

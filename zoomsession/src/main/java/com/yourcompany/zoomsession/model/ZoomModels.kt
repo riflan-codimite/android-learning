@@ -98,3 +98,30 @@ data class WaitingRoomUser(
     val name: String,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * Enum representing the role of a participant in the Zoom session.
+ */
+enum class ParticipantRole(val displayName: String) {
+    HOST("Host"),
+    MANAGER("Manager"),
+    PARTICIPANT("Participant"),
+    GUEST("Guest")
+}
+
+/**
+ * Data class representing a participant in the Zoom session.
+ *
+ * @property id Unique identifier for the participant
+ * @property name Display name of the participant
+ * @property role Role in the session
+ * @property imageUrl Optional URL/path for the participant's profile picture
+ * @property isMuted Whether the participant is currently muted by the host
+ */
+data class Participant(
+    val id: String,
+    val name: String,
+    val role: ParticipantRole = ParticipantRole.PARTICIPANT,
+    val imageUrl: String? = null,
+    val isMuted: Boolean = true
+)

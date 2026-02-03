@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.MicOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -639,13 +641,17 @@ fun WaitingRoomBottomSheetContent(
 
 /**
  * Bottom sheet showing all participants in the session.
+ * Host sees mic toggle buttons to allow/disallow participants to speak.
  */
 @Composable
 fun ParticipantsBottomSheet(
     participantCount: Int,
     displayName: String,
     isHost: Boolean,
-    remoteParticipants: List<String>
+    hostRole: ParticipantRole,
+    hostImageUrl: String?,
+    remoteParticipants: List<Participant>,
+    onToggleParticipantMute: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -655,7 +661,7 @@ fun ParticipantsBottomSheet(
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(ZoomColors.Blue)
+                .background(ZoomColors.DarkCard)
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -670,71 +676,250 @@ fun ParticipantsBottomSheet(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            // Current user (self)
             item {
                 Row(
+
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = ZoomColors.Success,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(displayName.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    ParticipantAvatar(
+                        name = displayName,
+                        imageUrl = hostImageUrl,
+                        backgroundColor = ZoomColors.Success
+                    )
                     Spacer(Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(displayName, fontWeight = FontWeight.Medium, color = Color.White)
                             Spacer(Modifier.width(4.dp))
                             Text("(You)", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-                            if (isHost) {
-                                Spacer(Modifier.width(8.dp))
-                                Surface(
-                                    color = ZoomColors.Blue,
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        "Host",
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
                         }
-                        Text("In this meeting", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                        Text(
+                            hostRole.displayName,
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
 
-            items(remoteParticipants) { participantName ->
+            // Remote participants sorted by role: Host, Manager, Participant, Guest
+            val sortedParticipants = remoteParticipants.sortedBy { it.role.ordinal }
+            items(sortedParticipants) { participant ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = ZoomColors.BlueGrey,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(participantName.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    ParticipantAvatar(
+                        name = participant.name,
+                        imageUrl = participant.imageUrl,
+                        backgroundColor = ZoomColors.BlueGrey
+                    )
                     Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(participantName, fontWeight = FontWeight.Medium, color = Color.White)
-                        Text("In this meeting", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(participant.name, fontWeight = FontWeight.Medium, color = Color.White)
+                        Text(
+                            participant.role.displayName,
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 12.sp
+                        )
+                    }
+                    if ((isHost || hostRole == ParticipantRole.MANAGER) &&
+                        participant.role != ParticipantRole.HOST &&
+                        participant.role != ParticipantRole.MANAGER
+                    ) {
+                        IconButton(
+                            onClick = { onToggleParticipantMute(participant.id) }
+                        ) {
+                            Icon(
+                                imageVector = if (participant.isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
+                                contentDescription = if (participant.isMuted) "Unmute ${participant.name}" else "Mute ${participant.name}",
+                                tint = if (participant.isMuted) ZoomColors.Error else ZoomColors.Success,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Avatar composable that shows a profile image if available, otherwise shows the first letter.
+ */
+@Composable
+private fun ParticipantAvatar(
+    name: String,
+    imageUrl: String?,
+    backgroundColor: Color
+) {
+    Surface(
+        shape = CircleShape,
+        color = backgroundColor,
+        modifier = Modifier.size(40.dp)
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+// ==================== PARTICIPANT MORE OPTIONS BOTTOM SHEET ====================
+
+/**
+ * Simplified More Options bottom sheet for participants.
+ * Contains quick reactions, caption language selection, and leave meeting button.
+ * No Recording, Whiteboard, Breakout Rooms, or Waiting Room options.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ParticipantMoreOptionsBottomSheet(
+    selectedTranscriptionLanguage: String,
+    availableTranscriptionLanguages: List<String>,
+    onSendReaction: (String) -> Unit,
+    onSelectTranscriptionLanguage: (String) -> Unit,
+    onLeaveSession: () -> Unit
+) {
+    val quickReactions = listOf("👍", "👏", "❤️", "😂", "😮", "🎉", "👎", "🔥")
+    var showLanguageDropdown by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            "More Options",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+        )
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+        // Reactions Section
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                "Reactions",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                quickReactions.take(4).forEach { emoji ->
+                    EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                quickReactions.drop(4).forEach { emoji ->
+                    EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
+                }
+            }
+        }
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+        // Caption Language Selection
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                "Caption Language",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = showLanguageDropdown,
+                onExpandedChange = { showLanguageDropdown = !showLanguageDropdown }
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    color = Color.White.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(selectedTranscriptionLanguage, color = Color.White, fontSize = 16.sp)
+                        Icon(
+                            if (showLanguageDropdown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select language",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                ExposedDropdownMenu(
+                    expanded = showLanguageDropdown,
+                    onDismissRequest = { showLanguageDropdown = false },
+                    modifier = Modifier.background(ZoomColors.DarkCard)
+                ) {
+                    availableTranscriptionLanguages.forEach { language ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    language,
+                                    color = if (language == selectedTranscriptionLanguage) ZoomColors.Purple else Color.White
+                                )
+                            },
+                            onClick = {
+                                onSelectTranscriptionLanguage(language)
+                                showLanguageDropdown = false
+                            },
+                            leadingIcon = if (language == selectedTranscriptionLanguage) {
+                                { Icon(Icons.Default.Check, null, tint = ZoomColors.Purple) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+        // Leave button
+        Surface(
+            onClick = onLeaveSession,
+            color = ZoomColors.Error,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Text(
+                "Leave Meeting",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(vertical = 14.dp),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -852,7 +1037,27 @@ private fun ParticipantsBottomSheetPreview() {
         participantCount = 4,
         displayName = "John Doe",
         isHost = true,
-        remoteParticipants = listOf("Alice", "Bob", "Charlie")
+        hostRole = ParticipantRole.HOST,
+        hostImageUrl = null,
+        remoteParticipants = listOf(
+            Participant(id = "1", name = "Alice", role = ParticipantRole.PARTICIPANT),
+            Participant(id = "2", name = "Bob", role = ParticipantRole.MANAGER),
+            Participant(id = "3", name = "Charlie", role = ParticipantRole.GUEST, isMuted = false)
+        ),
+        onToggleParticipantMute = {}
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+private fun ParticipantMoreOptionsBottomSheetPreview() {
+    ParticipantMoreOptionsBottomSheet(
+        selectedTranscriptionLanguage = "English",
+        availableTranscriptionLanguages = listOf("English", "Spanish", "French", "German"),
+        onSendReaction = {},
+        onSelectTranscriptionLanguage = {},
+        onLeaveSession = {}
     )
 }
 

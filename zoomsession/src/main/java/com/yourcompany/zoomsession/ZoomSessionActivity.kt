@@ -151,13 +151,19 @@ class ZoomSessionActivity : ComponentActivity() {
                     onAdmitUser = { userId -> vm.admitUserFromWaitingRoom(userId) },
                     onRemoveFromWaitingRoom = { userId -> vm.removeFromWaitingRoom(userId) },
                     onAdmitAllUsers = { vm.admitAllFromWaitingRoom() },
+                    onToggleParticipantMute = { participantId -> vm.toggleParticipantMute(participantId) },
                     onSendMessage = { vm.sendChatMessage(it) },
                     onChatReaction = { messageId, emoji -> vm.sendChatReaction(messageId, emoji) },
                     onLeaveSession = {
                         vm.leaveSession()
                         finish()
                     },
-                    onSelectTranscriptionLanguage = { language -> vm.setTranscriptionLanguage(language) }
+                    onSelectTranscriptionLanguage = { language -> vm.setTranscriptionLanguage(language) },
+                    onRequestUnmute = { vm.sendUnmuteRequest() },
+                    unmuteRequest = vm.unmuteRequest.value,
+                    onApproveUnmuteRequest = { userName -> vm.approveUnmuteRequest(userName) },
+                    onDismissUnmuteRequest = { vm.dismissUnmuteRequest() },
+                    isHostSharing = vm.isHostSharing.value
                 )
             }
         }
