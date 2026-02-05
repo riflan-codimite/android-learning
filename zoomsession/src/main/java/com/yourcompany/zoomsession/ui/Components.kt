@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yourcompany.zoomsession.model.RaisedHand
 import com.yourcompany.zoomsession.model.ReactionEmoji
 import com.yourcompany.zoomsession.model.WaitingRoomUser
 
@@ -165,7 +166,7 @@ fun StatusChip(text: String, color: Color) {
 
 /** Persistent raised hand indicator bubble. Stays visible until lowered. */
 @Composable
-fun RaisedHandBubble(reaction: ReactionEmoji) {
+fun RaisedHandBubble(raisedHand: RaisedHand) {
     Surface(
         modifier = Modifier.padding(vertical = 4.dp),
         color = ZoomColors.Orange,
@@ -176,9 +177,9 @@ fun RaisedHandBubble(reaction: ReactionEmoji) {
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(reaction.emoji, fontSize = 24.sp)
+            Text("✋", fontSize = 24.sp)
             Spacer(Modifier.width(8.dp))
-            Text(reaction.senderName.split(" ").first(), fontSize = 12.sp, color = Color.White)
+            Text(raisedHand.userName.split(" ").first(), fontSize = 12.sp, color = Color.White)
         }
     }
 }
@@ -514,10 +515,9 @@ private fun StatusChipPreview() {
 private fun RaisedHandBubblePreview() {
     Column(modifier = Modifier.padding(16.dp)) {
         RaisedHandBubble(
-            reaction = ReactionEmoji(
-                emoji = "✋",
-                senderName = "John Doe",
-                senderId = "user123"
+            raisedHand = RaisedHand(
+                userId = "user123",
+                userName = "John Doe"
             )
         )
     }

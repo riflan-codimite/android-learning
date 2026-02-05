@@ -63,7 +63,7 @@ fun ZoomSessionScreen(
     chatMessages: List<ChatMessage>,
     transcriptionMessages: List<TranscriptionMessage>,
     activeReactions: List<ReactionEmoji>,
-    raisedHands: List<ReactionEmoji>,
+    raisedHands: List<RaisedHand>,
     hostNotification: String? = null,
     onDismissHostNotification: () -> Unit = {},
     waitingRoomUsers: List<WaitingRoomUser>,
@@ -134,8 +134,8 @@ fun ZoomSessionScreen(
                     .padding(top = 100.dp, end = 16.dp)
             ) {
                 Column(horizontalAlignment = Alignment.End) {
-                    raisedHands.forEach { reaction ->
-                        RaisedHandBubble(reaction)
+                    raisedHands.forEach { hand ->
+                        RaisedHandBubble(hand)
                     }
                 }
             }
@@ -415,7 +415,7 @@ fun ZoomSessionScreen(
                         onClick = { onSendReaction("✋") },
                         icon = Icons.Outlined.PanTool,
                         label = "Raise",
-                        isActive = raisedHands.any { it.senderId == displayName },
+                        isActive = raisedHands.any { it.userName == displayName },
                         activeColor = ZoomColors.Warning,
                         inactiveColor = Color.White,
                         modifier = Modifier.weight(1f)
@@ -761,7 +761,7 @@ private fun ZoomSessionScreenHostPreview() {
             ReactionEmoji(emoji = "❤️", senderName = "Charlie", senderId = "charlie456")
         ),
         raisedHands = listOf(
-            ReactionEmoji(emoji = "✋", senderName = "Diana", senderId = "diana789")
+            RaisedHand(userId = "diana789", userName = "Diana")
         ),
         hostNotification = null,
         waitingRoomUsers = listOf(

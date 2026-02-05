@@ -80,7 +80,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var chatMessages = mutableStateOf(listOf<ChatMessage>())
     var transcriptionMessages = mutableStateOf(listOf<TranscriptionMessage>())
     var activeReactions = mutableStateOf(listOf<ReactionEmoji>())
-    var raisedHands = mutableStateOf(listOf<ReactionEmoji>())
+    var raisedHands = mutableStateOf(listOf<RaisedHand>())
     var hostNotification = mutableStateOf<String?>(null)
     var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())
     var unmuteRequest = mutableStateOf<String?>(null)
@@ -187,10 +187,23 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                         "toggle_mute" -> {
                             if (!isHost) toggleMute()
                         }
-                        "raise_hand" -> {
-                            if (isHost) {
-                                val userName = json.optString("userName", "Someone")
-                                hostNotification.value = "✋ $userName raised hand"
+                        "raiseHand" -> {
+                            val userId = json.optString("userId", "")
+                            val raised = json.optBoolean("raised", true)
+                            val timestamp = json.optLong("timestamp", System.currentTimeMillis())
+                            val userName = sender?.userName ?: "Someone"
+                            if (raised) {
+                                raisedHands.value = raisedHands.value + RaisedHand(
+                                    userId = userId,
+                                    userName = userName,
+                                    raised = true,
+                                    timestamp = timestamp
+                                )
+                                if (isHost) {
+                                    hostNotification.value = "✋ $userName raised hand"
+                                }
+                            } else {
+                                raisedHands.value = raisedHands.value.filter { it.userId != userId }
                             }
                         }
                         "unmute_request" -> {
@@ -600,27 +613,27 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun sendReaction(emoji: String) {
         val odUserId = sdk.session?.mySelf?.userID ?: displayName
         if (emoji == "✋") {
-            val existingHand = raisedHands.value.find { it.senderId == odUserId }
-            if (existingHand != null) {
-                raisedHands.value = raisedHands.value.filter { it.senderId != odUserId }
-            } else {
-                raisedHands.value = raisedHands.value + ReactionEmoji(
-                    emoji = emoji,
-                    senderName = displayName,
-                    senderId = odUserId,
-                    isRaiseHand = true
+            val existingHand = raisedHands.value.find { it.userId == odUserId }
+            val raised = existingHand == null
+            if (raised) {
+                raisedHands.value = raisedHands.value + RaisedHand(
+                    userId = odUserId,
+                    userName = displayName,
+                    raised = true
                 )
-                if (!isHost) {
-                    try {
-                        val command = org.json.JSONObject().apply {
-                            put("type", "raise_hand")
-                            put("userName", displayName)
-                        }.toString()
-                        sdk.cmdChannel?.sendCommand(null, command)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to send raise hand notification: ${e.message}")
-                    }
-                }
+            } else {
+                raisedHands.value = raisedHands.value.filter { it.userId != odUserId }
+            }
+            try {
+                val command = org.json.JSONObject().apply {
+                    put("type", "raiseHand")
+                    put("userId", odUserId)
+                    put("raised", raised)
+                    put("timestamp", System.currentTimeMillis())
+                }.toString()
+                sdk.cmdChannel?.sendCommand(null, command)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send raise hand: ${e.message}")
             }
         } else {
             activeReactions.value = activeReactions.value + ReactionEmoji(

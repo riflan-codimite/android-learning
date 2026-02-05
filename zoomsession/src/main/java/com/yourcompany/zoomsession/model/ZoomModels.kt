@@ -58,19 +58,32 @@ data class DrawingPath(
  * Data class representing a reaction emoji sent during the session.
  *
  * @property id Unique identifier based on timestamp
- * @property emoji The emoji string (e.g., "👍", "✋")
+ * @property emoji The emoji string (e.g., "👍", "❤️")
  * @property senderName Display name of who sent the reaction
- * @property senderId User ID for tracking (to toggle raise hand)
+ * @property senderId User ID for tracking
  * @property timestamp Unix timestamp when reaction was sent
- * @property isRaiseHand True if this is a persistent raise hand (not auto-removed)
  */
 data class ReactionEmoji(
     val id: String = System.currentTimeMillis().toString(),
     val emoji: String,
     val senderName: String,
     val senderId: String = "",
-    val timestamp: Long = System.currentTimeMillis(),
-    val isRaiseHand: Boolean = false
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Data class representing a raised hand, matching the web app's RaiseHandPayload.
+ *
+ * @property userId User ID of the participant who raised/lowered hand
+ * @property userName Display name for UI rendering
+ * @property raised True if hand is raised, false if lowered
+ * @property timestamp Unix timestamp when the action occurred
+ */
+data class RaisedHand(
+    val userId: String,
+    val userName: String,
+    val raised: Boolean = true,
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 /**
