@@ -331,6 +331,7 @@ fun ChatMessageBubble(
 ) {
     val isMe = message.isFromMe
     var showReactionPicker by remember { mutableStateOf(false) }
+    var reactionDetail by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     val quickReactions = listOf("👍", "❤️", "😂", "😮", "👏")
     val hasReactions = message.reactions.isNotEmpty()
 
@@ -374,7 +375,10 @@ fun ChatMessageBubble(
                             shape = RoundedCornerShape(12.dp),
                             shadowElevation = 2.dp,
                             border = BorderStroke(1.dp, ZoomColors.DarkDivider),
-                            onClick = { onReactionClick(message.messageId, emoji) }
+                            modifier = Modifier.combinedClickable(
+                                onClick = { onReactionClick(message.messageId, emoji) },
+                                onLongClick = { reactionDetail = emoji to users.values.toList() }
+                            )
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -415,6 +419,25 @@ fun ChatMessageBubble(
                     }
                 }
             }
+        }
+
+        reactionDetail?.let { (emoji, names) ->
+            AlertDialog(
+                onDismissRequest = { reactionDetail = null },
+                title = { Text("$emoji Reactions") },
+                text = {
+                    Column {
+                        names.forEach { name ->
+                            Text(name, modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { reactionDetail = null }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
     }
 }
@@ -979,7 +1002,7 @@ private fun ChatBottomSheetContentPreview() {
             message = "Hello everyone!",
             timestamp = System.currentTimeMillis(),
             isFromMe = false,
-            reactions = mapOf("👍" to listOf("Bob"))
+            reactions = mapOf("👍" to mapOf("bob_id" to "Bob"))
         ),
         ChatMessage(
             id = "2",

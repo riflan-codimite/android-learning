@@ -180,7 +180,8 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                             val messageId = json.getString("messageId")
                             val emoji = json.getString("emoji")
                             val odUserId = json.getString("userId")
-                            updateMessageReaction(messageId, emoji, odUserId)
+                            val userName = json.optString("userName", sender?.userName ?: "Unknown")
+                            updateMessageReaction(messageId, emoji, odUserId, userName)
                         }
                         "toggle_video" -> {
                             if (!isHost) toggleVideo()
@@ -399,13 +400,13 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun updateMessageReaction(messageId: String, emoji: String, odUserId: String) {
+    fun updateMessageReaction(messageId: String, emoji: String, userId: String, userName: String) {
         chatMessages.value = chatMessages.value.map { message ->
             if (message.messageId == messageId) {
                 val updatedReactions = message.reactions.toMutableMap()
-                val users = updatedReactions.getOrDefault(emoji, emptyList()).toMutableList()
-                if (!users.contains(odUserId)) {
-                    users.add(odUserId)
+                val users = updatedReactions.getOrDefault(emoji, emptyMap()).toMutableMap()
+                if (!users.containsKey(userId)) {
+                    users[userId] = userName
                     updatedReactions[emoji] = users
                 }
                 message.copy(reactions = updatedReactions)
@@ -418,7 +419,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun sendChatReaction(messageId: String, emoji: String) {
         val myUser = sdk.session?.mySelf
         val odUserId = myUser?.userID ?: displayName
-        updateMessageReaction(messageId, emoji, odUserId)
+        updateMessageReaction(messageId, emoji, odUserId, displayName)
         try {
             val reactionJson = org.json.JSONObject().apply {
                 put("type", "chat_reaction")

@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Path
  * @property message The actual text content of the message
  * @property timestamp Unix timestamp when message was sent
  * @property isFromMe True if current user sent this message (for UI positioning)
- * @property reactions Map of emoji to list of userIds who reacted with that emoji
+ * @property reactions Map of emoji to map of (userId to userName) who reacted with that emoji
  */
 data class ChatMessage(
     val id: String = System.currentTimeMillis().toString(),
@@ -21,7 +21,7 @@ data class ChatMessage(
     val message: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isFromMe: Boolean = false,
-    val reactions: Map<String, List<String>> = emptyMap()
+    val reactions: Map<String, Map<String, String>> = emptyMap()
 )
 
 /**
