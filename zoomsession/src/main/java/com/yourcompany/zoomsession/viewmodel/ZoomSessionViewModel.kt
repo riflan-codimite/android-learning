@@ -85,6 +85,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())
     var unmuteRequest = mutableStateOf<String?>(null)
     var isHostSharing = mutableStateOf(false)
+    var hostVideoVersion = mutableStateOf(0)
 
     // ==================== ZOOM SDK EVENT LISTENER ====================
     val zoomListener = object : ZoomVideoSDKDelegate {
@@ -212,6 +213,17 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                                 unmuteRequest.value = userName
                             }
                         }
+                        "live_caption" -> {
+                            if (!isHost) {
+                                val text = json.getString("text")
+                                val speakerName = json.optString("speakerName", "Host")
+                                transcriptionMessages.value = transcriptionMessages.value + TranscriptionMessage(
+                                    speakerName = speakerName,
+                                    originalText = text
+                                )
+                                isTranscriptionEnabled.value = true
+                            }
+                        }
                         "reaction" -> {
                             val emoji = json.getString("emoji")
                             val senderName = json.getString("senderName")
@@ -240,10 +252,12 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             messageItem?.let { msg ->
                 val content = msg.messageContent ?: ""
                 if (content.isNotBlank()) {
+                    val speakerName = msg.speakerName ?: "Unknown"
                     transcriptionMessages.value = transcriptionMessages.value + TranscriptionMessage(
-                        speakerName = msg.speakerName ?: "Unknown",
+                        speakerName = speakerName,
                         originalText = content
                     )
+                    if (isHost) broadcastCaption(speakerName, content)
                 }
             }
         }
@@ -256,10 +270,12 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             messageInfo?.let { msg ->
                 val content = msg.messageContent ?: ""
                 if (content.isNotBlank()) {
+                    val speakerName = msg.speakerName ?: "Unknown"
                     transcriptionMessages.value = transcriptionMessages.value + TranscriptionMessage(
-                        speakerName = msg.speakerName ?: "Unknown",
+                        speakerName = speakerName,
                         originalText = content
                     )
+                    if (isHost) broadcastCaption(speakerName, content)
                 }
             }
         }
@@ -269,7 +285,14 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         // Required empty implementations
-        override fun onUserVideoStatusChanged(videoHelper: ZoomVideoSDKVideoHelper?, userList: MutableList<ZoomVideoSDKUser>?) {}
+        override fun onUserVideoStatusChanged(videoHelper: ZoomVideoSDKVideoHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
+            val session = sdk.session ?: return
+            val hostUser = session.sessionHost ?: return
+            val hostChanged = userList?.any { it.userID == hostUser.userID } ?: false
+            if (hostChanged) {
+                hostVideoVersion.value++
+            }
+        }
         override fun onUserAudioStatusChanged(audioHelper: ZoomVideoSDKAudioHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
             updateParticipantCount()
         }
@@ -514,10 +537,40 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 Log.e(TAG, "Live transcription helper is NULL")
                 return
             }
+
+            // Set spoken language to English before starting
+            val spokenLanguages = transcriptionHelper.availableSpokenLanguages
+            Log.d(TAG, "Available spoken languages: ${spokenLanguages?.map { "${it.lttLanguageName}(${it.lttLanguageID})" }}")
+            val english = spokenLanguages?.firstOrNull {
+                it.lttLanguageName?.contains("English", ignoreCase = true) == true
+            }
+            if (english != null) {
+                val langResult = transcriptionHelper.setSpokenLanguage(english.lttLanguageID)
+                Log.d(TAG, "setSpokenLanguage(${english.lttLanguageName}) result: $langResult")
+            } else {
+                Log.w(TAG, "English not found in available spoken languages")
+            }
+
+            // Enable receiving original spoken language content
+            transcriptionHelper.enableReceiveSpokenLanguageContent(true)
+
             val result = transcriptionHelper.startLiveTranscription()
             Log.d(TAG, "startLiveTranscription result: $result")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in startLiveTranscription: ${e.message}")
+        }
+    }
+
+    private fun broadcastCaption(speakerName: String, text: String) {
+        try {
+            val command = org.json.JSONObject().apply {
+                put("type", "live_caption")
+                put("speakerName", speakerName)
+                put("text", text)
+            }.toString()
+            sdk.cmdChannel?.sendCommand(null, command)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to broadcast caption: ${e.message}")
         }
     }
 

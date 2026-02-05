@@ -163,7 +163,8 @@ class ZoomSessionActivity : ComponentActivity() {
                     unmuteRequest = vm.unmuteRequest.value,
                     onApproveUnmuteRequest = { userName -> vm.approveUnmuteRequest(userName) },
                     onDismissUnmuteRequest = { vm.dismissUnmuteRequest() },
-                    isHostSharing = vm.isHostSharing.value
+                    isHostSharing = vm.isHostSharing.value,
+                    hostVideoVersion = vm.hostVideoVersion.value
                 )
             }
         }

@@ -780,9 +780,11 @@ private fun ParticipantAvatar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParticipantMoreOptionsBottomSheet(
+    showTranscription: Boolean = false,
     selectedTranscriptionLanguage: String,
     availableTranscriptionLanguages: List<String>,
     onSendReaction: (String) -> Unit,
+    onToggleTranscription: () -> Unit = {},
     onSelectTranscriptionLanguage: (String) -> Unit,
     onLeaveSession: () -> Unit
 ) {
@@ -833,6 +835,19 @@ fun ParticipantMoreOptionsBottomSheet(
                     EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
                 }
             }
+        }
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+        // Captions toggle
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            MoreOptionItem(
+                icon = Icons.Default.List,
+                label = "Captions",
+                isActive = showTranscription,
+                activeColor = ZoomColors.Purple,
+                onClick = onToggleTranscription
+            )
         }
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.1f))

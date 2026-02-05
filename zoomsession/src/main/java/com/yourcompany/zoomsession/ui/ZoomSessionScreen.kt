@@ -90,7 +90,8 @@ fun ZoomSessionScreen(
     unmuteRequest: String? = null,
     onApproveUnmuteRequest: (String) -> Unit = {},
     onDismissUnmuteRequest: () -> Unit = {},
-    isHostSharing: Boolean = false
+    isHostSharing: Boolean = false,
+    hostVideoVersion: Int = 0
 ) {
     val chatSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val whiteboardSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -106,7 +107,7 @@ fun ZoomSessionScreen(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         // Video tile - FULL SCREEN
-        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing)
+        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing, hostVideoVersion)
 
         // Recording indicator
         if (isRecording) {
@@ -473,9 +474,11 @@ fun ZoomSessionScreen(
                 )
             } else {
                 ParticipantMoreOptionsBottomSheet(
+                    showTranscription = showTranscription,
                     selectedTranscriptionLanguage = selectedTranscriptionLanguage,
                     availableTranscriptionLanguages = availableTranscriptionLanguages,
                     onSendReaction = { emoji -> onSendReaction(emoji); showMore = false },
+                    onToggleTranscription = { onToggleTranscription(); showMore = false },
                     onSelectTranscriptionLanguage = onSelectTranscriptionLanguage,
                     onLeaveSession = onLeaveSession
                 )
@@ -568,7 +571,7 @@ fun ZoomSessionScreen(
  * Host sees own camera; participant always sees host's camera.
  */
 @Composable
-fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false) {
+fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false, hostVideoVersion: Int = 0) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -642,6 +645,8 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                 },
                 modifier = Modifier.fillMaxSize(),
                 update = { view ->
+                    // hostVideoVersion parameter change triggers SelfVideoTile recomposition,
+                    // which re-runs this block to re-subscribe to the video canvas.
                     val session = ZoomVideoSDK.getInstance().session
                     val hostUser = session?.sessionHost ?: session?.remoteUsers?.firstOrNull()
                     hostUser?.videoCanvas?.subscribe(
