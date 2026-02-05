@@ -184,6 +184,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                         "toggle_video" -> {
                             if (!isHost) toggleVideo()
                         }
+                        "toggle_mute" -> {
+                            if (!isHost) toggleMute()
+                        }
                         "raise_hand" -> {
                             if (isHost) {
                                 val userName = json.optString("userName", "Someone")
@@ -254,7 +257,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
         // Required empty implementations
         override fun onUserVideoStatusChanged(videoHelper: ZoomVideoSDKVideoHelper?, userList: MutableList<ZoomVideoSDKUser>?) {}
-        override fun onUserAudioStatusChanged(audioHelper: ZoomVideoSDKAudioHelper?, userList: MutableList<ZoomVideoSDKUser>?) {}
+        override fun onUserAudioStatusChanged(audioHelper: ZoomVideoSDKAudioHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
+            updateParticipantCount()
+        }
         override fun onUserShareStatusChanged(shareHelper: ZoomVideoSDKShareHelper?, userInfo: ZoomVideoSDKUser?, status: ZoomVideoSDKShareStatus?) {
             val session = sdk.session ?: return
             val hostUser = session.sessionHost
@@ -546,13 +551,34 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         val remoteUser = sdk.session?.remoteUsers?.firstOrNull {
             (it.userID ?: it.userName) == participantId
         } ?: return
-        val isMuted = remoteUser.audioStatus?.isMuted != false
+        // Read mute state from the local participant list (what the UI shows)
+        // instead of the SDK, which may lag behind after optimistic updates.
+        val participant = remoteParticipants.value.find { it.id == participantId } ?: return
+        val isMuted = participant.isMuted
         if (isMuted) {
-            sdk.audioHelper?.unMuteAudio(remoteUser)
+            // Host cannot directly unmute a remote participant;
+            // send a command so the participant unmutes themselves.
+            try {
+                val command = org.json.JSONObject().apply {
+                    put("type", "toggle_mute")
+                    put("fromHost", true)
+                }.toString()
+                sdk.cmdChannel?.sendCommand(remoteUser, command)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send toggle mute command: ${e.message}")
+            }
         } else {
             sdk.audioHelper?.muteAudio(remoteUser)
         }
-        updateParticipantCount()
+        // Optimistically update UI so the bottom sheet reflects the change immediately,
+        // rather than waiting for the async onUserAudioStatusChanged callback.
+        remoteParticipants.value = remoteParticipants.value.map { participant ->
+            if (participant.id == participantId) {
+                participant.copy(isMuted = !isMuted)
+            } else {
+                participant
+            }
+        }
     }
 
     // ==================== WAITING ROOM MANAGEMENT ====================
@@ -670,7 +696,17 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun approveUnmuteRequest(userName: String) {
         val remoteUsers = sdk.session?.remoteUsers ?: return
         val user = remoteUsers.find { it.userName == userName }
-        user?.let { sdk.audioHelper?.unMuteAudio(it) }
+        user?.let {
+            try {
+                val command = org.json.JSONObject().apply {
+                    put("type", "toggle_mute")
+                    put("fromHost", true)
+                }.toString()
+                sdk.cmdChannel?.sendCommand(it, command)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send unmute approval command: ${e.message}")
+            }
+        }
         unmuteRequest.value = null
     }
 
