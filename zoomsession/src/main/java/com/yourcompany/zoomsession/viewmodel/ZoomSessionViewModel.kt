@@ -196,6 +196,19 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                                 unmuteRequest.value = userName
                             }
                         }
+                        "emoji_reaction" -> {
+                            val emoji = json.getString("emoji")
+                            val senderName = json.getString("senderName")
+                            val senderId = json.getString("senderId")
+                            val myUserId = sdk.session?.mySelf?.userID
+                            if (senderId != myUserId) {
+                                activeReactions.value = activeReactions.value + ReactionEmoji(
+                                    emoji = emoji,
+                                    senderName = senderName,
+                                    senderId = senderId
+                                )
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse command: ${e.message}")
@@ -589,6 +602,17 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 senderName = displayName,
                 senderId = odUserId
             )
+            try {
+                val command = org.json.JSONObject().apply {
+                    put("type", "emoji_reaction")
+                    put("emoji", emoji)
+                    put("senderName", displayName)
+                    put("senderId", odUserId)
+                }.toString()
+                sdk.cmdChannel?.sendCommand(null, command)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send emoji reaction: ${e.message}")
+            }
         }
     }
 
