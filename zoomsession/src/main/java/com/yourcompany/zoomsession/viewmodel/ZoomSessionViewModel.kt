@@ -212,7 +212,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                                 unmuteRequest.value = userName
                             }
                         }
-                        "emoji_reaction" -> {
+                        "reaction" -> {
                             val emoji = json.getString("emoji")
                             val senderName = json.getString("senderName")
                             val senderId = json.getString("senderId")
@@ -643,7 +643,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             )
             try {
                 val command = org.json.JSONObject().apply {
-                    put("type", "emoji_reaction")
+                    put("type", "reaction")
                     put("emoji", emoji)
                     put("senderName", displayName)
                     put("senderId", odUserId)
