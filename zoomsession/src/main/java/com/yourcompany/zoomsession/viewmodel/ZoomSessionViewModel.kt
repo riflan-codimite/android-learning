@@ -62,8 +62,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var showTranscription = mutableStateOf(false)
     var showSubsessions = mutableStateOf(false)
     var showReactions = mutableStateOf(false)
-    var showWaitingRoom = mutableStateOf(false)
-    var isInWaitingRoom = mutableStateOf(false)
     var isTranscriptionEnabled = mutableStateOf(false)
     var isRecording = mutableStateOf(false)
     var selectedSpokenLanguage = mutableStateOf("English")
@@ -82,7 +80,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var activeReactions = mutableStateOf(listOf<ReactionEmoji>())
     var raisedHands = mutableStateOf(listOf<RaisedHand>())
     var hostNotification = mutableStateOf<String?>(null)
-    var waitingRoomUsers = mutableStateOf(listOf<WaitingRoomUser>())
     var unmuteRequest = mutableStateOf<String?>(null)
     var isHostSharing = mutableStateOf(false)
     var hostVideoVersion = mutableStateOf(0)
@@ -90,19 +87,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     // ==================== ZOOM SDK EVENT LISTENER ====================
     val zoomListener = object : ZoomVideoSDKDelegate {
         override fun onSessionJoin() {
-            if (!isHost) {
-                val session = sdk.session
-                val hostUser = session?.remoteUsers?.find { user ->
-                    session.sessionHost?.let { host -> user.userID == host.userID } ?: false
-                }
-                if (hostUser == null && session?.sessionHost == null) {
-                    isInWaitingRoom.value = true
-                    statusMessage.value = "Waiting for host..."
-                    return
-                }
-            }
             isInSession.value = true
-            isInWaitingRoom.value = false
             statusMessage.value = "Connected"
             updateParticipantCount()
             ensureAudioVideoOff()
@@ -110,13 +95,11 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onSessionLeave() {
             isInSession.value = false
-            isInWaitingRoom.value = false
             statusMessage.value = "Disconnected"
         }
 
         override fun onSessionLeave(reason: ZoomVideoSDKSessionLeaveReason?) {
             isInSession.value = false
-            isInWaitingRoom.value = false
             statusMessage.value = "Disconnected"
         }
 
@@ -127,14 +110,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onUserJoin(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
             updateParticipantCount()
-            if (isInWaitingRoom.value && !isHost) {
-                val session = sdk.session
-                if (session?.sessionHost != null) {
-                    isInWaitingRoom.value = false
-                    isInSession.value = true
-                    statusMessage.value = "Connected"
-                }
-            }
         }
 
         override fun onUserLeave(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
@@ -448,17 +423,11 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             this.videoOption = videoOptions
         }
 
-        if (!isHost) {
-            isInWaitingRoom.value = true
-            statusMessage.value = "Joining waiting room..."
-        }
-
         val session = sdk.joinSession(sessionContext)
         if (session != null) {
-            statusMessage.value = if (isHost) "Joining..." else "Waiting for host..."
+            statusMessage.value = "Joining..."
         } else {
             statusMessage.value = "Failed to join"
-            isInWaitingRoom.value = false
         }
     }
 
@@ -646,20 +615,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 participant
             }
         }
-    }
-
-    // ==================== WAITING ROOM MANAGEMENT ====================
-
-    fun admitUserFromWaitingRoom(userId: String) {
-        waitingRoomUsers.value = waitingRoomUsers.value.filter { it.id != userId }
-    }
-
-    fun removeFromWaitingRoom(userId: String) {
-        waitingRoomUsers.value = waitingRoomUsers.value.filter { it.id != userId }
-    }
-
-    fun admitAllFromWaitingRoom() {
-        waitingRoomUsers.value = emptyList()
     }
 
     // ==================== REACTIONS ====================

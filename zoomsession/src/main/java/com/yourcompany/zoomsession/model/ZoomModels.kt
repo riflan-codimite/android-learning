@@ -100,19 +100,6 @@ data class Subsession(
 )
 
 /**
- * Data class representing a user in the waiting room.
- *
- * @property id User's unique identifier
- * @property name Display name of the waiting user
- * @property timestamp When the user joined the waiting room
- */
-data class WaitingRoomUser(
-    val id: String,
-    val name: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
-/**
  * Enum representing the role of a participant in the Zoom session.
  */
 enum class ParticipantRole(val displayName: String) {

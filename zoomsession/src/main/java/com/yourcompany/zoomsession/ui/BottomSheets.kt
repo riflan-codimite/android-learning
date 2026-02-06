@@ -3,6 +3,7 @@ package com.yourcompany.zoomsession.ui
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -10,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MicOff
 import androidx.compose.material3.*
@@ -34,7 +34,7 @@ import com.yourcompany.zoomsession.model.*
 
 /**
  * Bottom sheet containing additional options not shown in the main bottom bar.
- * Quick reactions, recording, whiteboard, captions, waiting room, and leave button.
+ * Quick reactions, recording, whiteboard, captions, and leave button.
  */
 //@Preview(showBackground = true)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,9 +45,7 @@ fun MoreOptionsBottomSheet(
     showTranscription: Boolean,
     showSubsessions: Boolean,
     showReactions: Boolean,
-    showWaitingRoom: Boolean,
     isHost: Boolean,
-    waitingRoomCount: Int,
     selectedTranscriptionLanguage: String,
     availableTranscriptionLanguages: List<String>,
     onToggleRecording: () -> Unit,
@@ -55,18 +53,16 @@ fun MoreOptionsBottomSheet(
     onToggleTranscription: () -> Unit,
     onToggleSubsessions: () -> Unit,
     onToggleReactions: () -> Unit,
-    onToggleWaitingRoom: () -> Unit,
     onLeaveSession: () -> Unit,
     onSendReaction: (String) -> Unit,
     onSelectTranscriptionLanguage: (String) -> Unit
 ) {
-    val quickReactions = listOf("👍", "👏", "❤️", "😂", "😮", "🎉", "👎", "🔥")
+    val quickReactions = listOf("👍", "👏", "❤️", "😂", "😮", "🎉")
     var showLanguageDropdown by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 32.dp)
     ) {
         Text(
             "More Options",
@@ -90,22 +86,12 @@ fun MoreOptionsBottomSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                quickReactions.take(4).forEach { emoji ->
+                quickReactions.take(6).forEach { emoji ->
                     EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                quickReactions.drop(4).forEach { emoji ->
-                    EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
-                }
             }
         }
 
@@ -186,13 +172,13 @@ fun MoreOptionsBottomSheet(
                     activeColor = ZoomColors.Error,
                     onClick = onToggleRecording
                 )
-                MoreOptionItem(
-                    icon = Icons.Default.Edit,
-                    label = "Whiteboard",
-                    isActive = showWhiteboard,
-                    activeColor = ZoomColors.Orange,
-                    onClick = onToggleWhiteboard
-                )
+//                MoreOptionItem(
+//                    icon = Icons.Default.Edit,
+//                    label = "Whiteboard",
+//                    isActive = showWhiteboard,
+//                    activeColor = ZoomColors.Orange,
+//                    onClick = onToggleWhiteboard
+//                )
                 MoreOptionItem(
                     icon = Icons.Default.List,
                     label = "Captions",
@@ -200,14 +186,7 @@ fun MoreOptionsBottomSheet(
                     activeColor = ZoomColors.Purple,
                     onClick = onToggleTranscription
                 )
-            }
 
-            Spacer(Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
                 MoreOptionItem(
                     icon = Icons.Default.AccountBox,
                     label = "Breakout Rooms",
@@ -215,23 +194,14 @@ fun MoreOptionsBottomSheet(
                     activeColor = ZoomColors.Cyan,
                     onClick = onToggleSubsessions
                 )
-                if (isHost) {
-                    MoreOptionItem(
-                        icon = Icons.Default.Lock,
-                        label = "Waiting Room ($waitingRoomCount)",
-                        isActive = showWaitingRoom,
-                        activeColor = ZoomColors.BlueGrey,
-                        onClick = onToggleWaitingRoom
-                    )
-                    Spacer(Modifier.width(80.dp))
-                } else {
-                    Spacer(Modifier.width(80.dp))
-                    Spacer(Modifier.width(80.dp))
-                }
+                Spacer(Modifier.width(80.dp))
+                Spacer(Modifier.width(80.dp))
             }
+
+
         }
 
-        Spacer(Modifier.height(16.dp))
+//        Spacer(Modifier.height(16.dp))
         HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
 
         // Leave button
@@ -273,19 +243,13 @@ fun ChatBottomSheetContent(
     LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
 
     Column(Modifier.fillMaxWidth().height(500.dp)) {
-        Row(Modifier.fillMaxWidth().background(ZoomColors.Primary).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Email, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(12.dp))
+        Row(Modifier.fillMaxWidth().background(ZoomColors.DarkCard).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+//            Icon(Icons.Default.Email, null, tint = Color.White, modifier = Modifier.size(24.dp))
+//            Spacer(Modifier.width(12.dp))
             Text("Chat", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text("${messages.size} messages", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+//            Spacer(Modifier.weight(1f))
+//            Text("${messages.size} messages", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
         }
-        Text(
-            "Long press on a message to react",
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 11.sp,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-        )
         LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth().background(ZoomColors.DarkCard).padding(horizontal = 12.dp, vertical = 8.dp)) {
             items(messages) { message ->
                 ChatMessageBubble(message, onReactionClick)
@@ -421,20 +385,70 @@ fun ChatMessageBubble(
             }
         }
 
-        reactionDetail?.let { (emoji, names) ->
+        if (reactionDetail != null) {
+            val (emoji, names) = reactionDetail!!
             AlertDialog(
                 onDismissRequest = { reactionDetail = null },
-                title = { Text("$emoji Reactions") },
+                containerColor = ZoomColors.DarkCard,
+                shape = RoundedCornerShape(20.dp),
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(emoji, fontSize = 28.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "Reactions",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "${names.size} ${if (names.size == 1) "person" else "people"}",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                },
                 text = {
                     Column {
+                        HorizontalDivider(color = ZoomColors.DarkDivider)
+                        Spacer(Modifier.height(8.dp))
                         names.forEach { name ->
-                            Text(name, modifier = Modifier.padding(vertical = 4.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = ZoomColors.DarkAvatarBg,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            name.take(1).uppercase(),
+                                            color = Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    name,
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { reactionDetail = null }) {
-                        Text("Close")
+                        Text("Close", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
                     }
                 }
             )
@@ -599,67 +613,6 @@ fun SubsessionsBottomSheetContent(isHost: Boolean) {
     }
 }
 
-// ==================== WAITING ROOM BOTTOM SHEET ====================
-
-/** Bottom sheet for managing waiting room users (host only). */
-@Composable
-fun WaitingRoomBottomSheetContent(
-    waitingRoomUsers: List<WaitingRoomUser>,
-    onAdmitUser: (String) -> Unit,
-    onRemoveUser: (String) -> Unit,
-    onAdmitAll: () -> Unit
-) {
-    Column(Modifier.fillMaxWidth().height(500.dp)) {
-        Row(
-            Modifier.fillMaxWidth().background(ZoomColors.Brown).padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Waiting Room", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("${waitingRoomUsers.size} waiting", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                }
-            }
-            if (waitingRoomUsers.isNotEmpty()) {
-                Button(
-                    onClick = onAdmitAll,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text("Admit All", color = ZoomColors.Brown, fontWeight = FontWeight.Medium)
-                }
-            }
-        }
-
-        if (waitingRoomUsers.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.Lock, null, tint = Color.Gray, modifier = Modifier.size(64.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text("No one in waiting room", color = Color.Gray, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Participants will appear here", color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp)
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                items(waitingRoomUsers) { user ->
-                    WaitingRoomUserCard(
-                        user = user,
-                        onAdmit = { onAdmitUser(user.id) },
-                        onRemove = { onRemoveUser(user.id) }
-                    )
-                }
-            }
-        }
-    }
-}
-
 // ==================== PARTICIPANTS BOTTOM SHEET ====================
 
 /**
@@ -798,7 +751,7 @@ private fun ParticipantAvatar(
 /**
  * Simplified More Options bottom sheet for participants.
  * Contains quick reactions, caption language selection, and leave meeting button.
- * No Recording, Whiteboard, Breakout Rooms, or Waiting Room options.
+ * No Recording, Whiteboard, or Breakout Rooms options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -811,13 +764,12 @@ fun ParticipantMoreOptionsBottomSheet(
     onSelectTranscriptionLanguage: (String) -> Unit,
     onLeaveSession: () -> Unit
 ) {
-    val quickReactions = listOf("👍", "👏", "❤️", "😂", "😮", "🎉", "👎", "🔥")
+    val quickReactions = listOf("👍", "👏", "❤️", "😂", "😮", "🎉")
     var showLanguageDropdown by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 32.dp)
     ) {
         Text(
             "More Options",
@@ -841,20 +793,9 @@ fun ParticipantMoreOptionsBottomSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                quickReactions.take(4).forEach { emoji ->
-                    EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                quickReactions.drop(4).forEach { emoji ->
+                quickReactions.take(6).forEach { emoji ->
                     EmojiButton(emoji = emoji, onClick = { onSendReaction(emoji) })
                 }
             }
@@ -974,9 +915,7 @@ private fun MoreOptionsBottomSheetPreview() {
         showTranscription = true,
         showSubsessions = false,
         showReactions = true,
-        showWaitingRoom = false,
         isHost = true,
-        waitingRoomCount = 3,
         selectedTranscriptionLanguage = "English",
         availableTranscriptionLanguages = listOf("English", "Spanish", "French", "German"),
         onToggleRecording = {},
@@ -984,7 +923,6 @@ private fun MoreOptionsBottomSheetPreview() {
         onToggleTranscription = {},
         onToggleSubsessions = {},
         onToggleReactions = {},
-        onToggleWaitingRoom = {},
         onLeaveSession = {},
         onSendReaction = {},
         onSelectTranscriptionLanguage = {}
@@ -1040,32 +978,6 @@ private fun WhiteboardBottomSheetContentPreview() {
 @Composable
 private fun SubsessionsBottomSheetContentPreview() {
     SubsessionsBottomSheetContent(isHost = true)
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
-@Composable
-private fun WaitingRoomBottomSheetContentPreview() {
-    val sampleUsers = listOf(
-        WaitingRoomUser("1", "John Doe", System.currentTimeMillis()),
-        WaitingRoomUser("2", "Jane Smith", System.currentTimeMillis())
-    )
-    WaitingRoomBottomSheetContent(
-        waitingRoomUsers = sampleUsers,
-        onAdmitUser = {},
-        onRemoveUser = {},
-        onAdmitAll = {}
-    )
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
-@Composable
-private fun WaitingRoomEmptyPreview() {
-    WaitingRoomBottomSheetContent(
-        waitingRoomUsers = emptyList(),
-        onAdmitUser = {},
-        onRemoveUser = {},
-        onAdmitAll = {}
-    )
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)

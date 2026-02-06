@@ -32,7 +32,7 @@ import us.zoom.sdk.ZoomVideoSDKVideoView
  * - Top bar: Session name, status, participant count button
  * - Bottom bar: Mute, Video, Share, Chat, More buttons
  * - Overlays: Recording indicator, raised hands, floating reactions, transcription
- * - Bottom sheets: Chat, Whiteboard, Participants, More options, Waiting room
+ * - Bottom sheets: Chat, Whiteboard, Participants, More options
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,8 +53,6 @@ fun ZoomSessionScreen(
     showTranscription: Boolean,
     showSubsessions: Boolean,
     showReactions: Boolean,
-    showWaitingRoom: Boolean,
-    isInWaitingRoom: Boolean,
     isTranscriptionEnabled: Boolean,
     isRecording: Boolean,
     selectedTranscriptionLanguage: String,
@@ -66,7 +64,6 @@ fun ZoomSessionScreen(
     raisedHands: List<RaisedHand>,
     hostNotification: String? = null,
     onDismissHostNotification: () -> Unit = {},
-    waitingRoomUsers: List<WaitingRoomUser>,
     onToggleMute: () -> Unit,
     onToggleVideo: () -> Unit,
     onToggleChat: () -> Unit,
@@ -74,13 +71,9 @@ fun ZoomSessionScreen(
     onToggleTranscription: () -> Unit,
     onToggleSubsessions: () -> Unit,
     onToggleReactions: () -> Unit,
-    onToggleWaitingRoom: () -> Unit,
     onToggleTranscriptionEnabled: () -> Unit,
     onToggleRecording: () -> Unit,
     onSendReaction: (String) -> Unit,
-    onAdmitUser: (String) -> Unit,
-    onRemoveFromWaitingRoom: (String) -> Unit,
-    onAdmitAllUsers: () -> Unit,
     onSendMessage: (String) -> Unit,
     onChatReaction: (String, String) -> Unit,
     onToggleParticipantMute: (String) -> Unit,
@@ -97,7 +90,6 @@ fun ZoomSessionScreen(
     val whiteboardSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val subsessionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val reactionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val waitingRoomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val moreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showMore by remember { mutableStateOf(false) }
     var showParticipants by remember { mutableStateOf(false) }
@@ -457,9 +449,7 @@ fun ZoomSessionScreen(
                     showTranscription = showTranscription,
                     showSubsessions = showSubsessions,
                     showReactions = showReactions,
-                    showWaitingRoom = showWaitingRoom,
                     isHost = isHost,
-                    waitingRoomCount = waitingRoomUsers.size,
                     selectedTranscriptionLanguage = selectedTranscriptionLanguage,
                     availableTranscriptionLanguages = availableTranscriptionLanguages,
                     onToggleRecording = { onToggleRecording(); showMore = false },
@@ -467,7 +457,6 @@ fun ZoomSessionScreen(
                     onToggleTranscription = { onToggleTranscription(); if (!isTranscriptionEnabled) onToggleTranscriptionEnabled(); showMore = false },
                     onToggleSubsessions = { onToggleSubsessions(); showMore = false },
                     onToggleReactions = { onToggleReactions(); showMore = false },
-                    onToggleWaitingRoom = { onToggleWaitingRoom(); showMore = false },
                     onLeaveSession = onLeaveSession,
                     onSendReaction = { emoji -> onSendReaction(emoji); showMore = false },
                     onSelectTranscriptionLanguage = onSelectTranscriptionLanguage
@@ -546,22 +535,6 @@ fun ZoomSessionScreen(
         }
     }
 
-    // Waiting Room Bottom Sheet (Host only)
-    if (showWaitingRoom && isHost) {
-        ModalBottomSheet(onDismissRequest = onToggleWaitingRoom, sheetState = waitingRoomSheetState, containerColor = ZoomColors.DarkSurface, shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)) {
-            WaitingRoomBottomSheetContent(
-                waitingRoomUsers = waitingRoomUsers,
-                onAdmitUser = onAdmitUser,
-                onRemoveUser = onRemoveFromWaitingRoom,
-                onAdmitAll = onAdmitAllUsers
-            )
-        }
-    }
-
-    // Waiting Room Overlay (for participants waiting to be admitted)
-    if (isInWaitingRoom) {
-        WaitingRoomOverlay(sessionName = sessionName, onLeave = onLeaveSession)
-    }
 }
 
 // ==================== SELF VIDEO TILE ====================
@@ -746,8 +719,6 @@ private fun ZoomSessionScreenHostPreview() {
         showTranscription = true,
         showSubsessions = false,
         showReactions = true,
-        showWaitingRoom = false,
-        isInWaitingRoom = false,
         isTranscriptionEnabled = true,
         isRecording = true,
         selectedTranscriptionLanguage = "English",
@@ -769,9 +740,6 @@ private fun ZoomSessionScreenHostPreview() {
             RaisedHand(userId = "diana789", userName = "Diana")
         ),
         hostNotification = null,
-        waitingRoomUsers = listOf(
-            WaitingRoomUser(id = "1", name = "Eve", timestamp = System.currentTimeMillis())
-        ),
         onToggleMute = {},
         onToggleVideo = {},
         onToggleChat = {},
@@ -779,13 +747,9 @@ private fun ZoomSessionScreenHostPreview() {
         onToggleTranscription = {},
         onToggleSubsessions = {},
         onToggleReactions = {},
-        onToggleWaitingRoom = {},
         onToggleTranscriptionEnabled = {},
         onToggleRecording = {},
         onSendReaction = {},
-        onAdmitUser = {},
-        onRemoveFromWaitingRoom = {},
-        onAdmitAllUsers = {},
         onToggleParticipantMute = {},
         onSendMessage = {},
         onChatReaction = { _, _ -> },
@@ -816,8 +780,6 @@ private fun ZoomSessionScreenParticipantPreview() {
         showTranscription = false,
         showSubsessions = false,
         showReactions = false,
-        showWaitingRoom = false,
-        isInWaitingRoom = false,
         isTranscriptionEnabled = false,
         isRecording = false,
         selectedTranscriptionLanguage = "English",
@@ -828,7 +790,6 @@ private fun ZoomSessionScreenParticipantPreview() {
         activeReactions = emptyList(),
         raisedHands = emptyList(),
         hostNotification = null,
-        waitingRoomUsers = emptyList(),
         onToggleMute = {},
         onToggleVideo = {},
         onToggleChat = {},
@@ -836,13 +797,9 @@ private fun ZoomSessionScreenParticipantPreview() {
         onToggleTranscription = {},
         onToggleSubsessions = {},
         onToggleReactions = {},
-        onToggleWaitingRoom = {},
         onToggleTranscriptionEnabled = {},
         onToggleRecording = {},
         onSendReaction = {},
-        onAdmitUser = {},
-        onRemoveFromWaitingRoom = {},
-        onAdmitAllUsers = {},
         onToggleParticipantMute = {},
         onSendMessage = {},
         onChatReaction = { _, _ -> },

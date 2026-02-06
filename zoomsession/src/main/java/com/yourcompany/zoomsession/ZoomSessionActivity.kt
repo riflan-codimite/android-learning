@@ -109,8 +109,6 @@ class ZoomSessionActivity : ComponentActivity() {
                     showTranscription = vm.showTranscription.value,
                     showSubsessions = vm.showSubsessions.value,
                     showReactions = vm.showReactions.value,
-                    showWaitingRoom = vm.showWaitingRoom.value,
-                    isInWaitingRoom = vm.isInWaitingRoom.value,
                     isTranscriptionEnabled = vm.isTranscriptionEnabled.value,
                     isRecording = vm.isRecording.value,
                     selectedTranscriptionLanguage = vm.selectedTranslationLanguage.value,
@@ -122,7 +120,6 @@ class ZoomSessionActivity : ComponentActivity() {
                     raisedHands = vm.raisedHands.value,
                     hostNotification = vm.hostNotification.value,
                     onDismissHostNotification = { vm.hostNotification.value = null },
-                    waitingRoomUsers = vm.waitingRoomUsers.value,
                     onToggleMute = { vm.toggleMute() },
                     onToggleVideo = { vm.toggleVideo() },
                     onToggleChat = {
@@ -135,7 +132,6 @@ class ZoomSessionActivity : ComponentActivity() {
                     },
                     onToggleSubsessions = { vm.showSubsessions.value = !vm.showSubsessions.value },
                     onToggleReactions = { vm.showReactions.value = !vm.showReactions.value },
-                    onToggleWaitingRoom = { vm.showWaitingRoom.value = !vm.showWaitingRoom.value },
                     onToggleTranscriptionEnabled = {
                         vm.isTranscriptionEnabled.value = !vm.isTranscriptionEnabled.value
                         if (vm.isTranscriptionEnabled.value) {
@@ -148,9 +144,6 @@ class ZoomSessionActivity : ComponentActivity() {
                         vm.isRecording.value = !vm.isRecording.value
                     },
                     onSendReaction = { emoji -> vm.sendReaction(emoji) },
-                    onAdmitUser = { userId -> vm.admitUserFromWaitingRoom(userId) },
-                    onRemoveFromWaitingRoom = { userId -> vm.removeFromWaitingRoom(userId) },
-                    onAdmitAllUsers = { vm.admitAllFromWaitingRoom() },
                     onToggleParticipantMute = { participantId -> vm.toggleParticipantMute(participantId) },
                     onSendMessage = { vm.sendChatMessage(it) },
                     onChatReaction = { messageId, emoji -> vm.sendChatReaction(messageId, emoji) },
