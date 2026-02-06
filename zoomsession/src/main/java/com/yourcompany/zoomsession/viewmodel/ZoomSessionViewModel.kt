@@ -146,6 +146,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         override fun onCommandReceived(sender: ZoomVideoSDKUser?, strCmd: String?) {
+            Log.d(TAG, "Command received from ${sender?.userName}: $strCmd")
             strCmd?.let { cmd ->
                 try {
                     val json = org.json.JSONObject(cmd)
@@ -202,8 +203,8 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                         }
                         "reaction" -> {
                             val emoji = json.getString("emoji")
-                            val senderName = json.getString("senderName")
-                            val senderId = json.getString("senderId")
+                            val senderName = json.optString("senderName", json.optString("userName", sender?.userName ?: "Unknown"))
+                            val senderId = json.optString("senderId", json.optString("userId", ""))
                             val myUserId = sdk.session?.mySelf?.userID
                             if (senderId != myUserId) {
                                 activeReactions.value = activeReactions.value + ReactionEmoji(

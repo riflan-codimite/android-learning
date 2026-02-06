@@ -243,19 +243,22 @@ fun ChatBottomSheetContent(
     LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
 
     Column(Modifier.fillMaxWidth().height(500.dp)) {
-        Row(Modifier.fillMaxWidth().background(ZoomColors.DarkCard).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
 //            Icon(Icons.Default.Email, null, tint = Color.White, modifier = Modifier.size(24.dp))
 //            Spacer(Modifier.width(12.dp))
             Text("Chat", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
 //            Spacer(Modifier.weight(1f))
 //            Text("${messages.size} messages", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
         }
-        LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth().background(ZoomColors.DarkCard).padding(horizontal = 12.dp, vertical = 8.dp)) {
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+        LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
             items(messages) { message ->
                 ChatMessageBubble(message, onReactionClick)
             }
         }
-        Row(Modifier.fillMaxWidth().background(ZoomColors.DarkCard).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },

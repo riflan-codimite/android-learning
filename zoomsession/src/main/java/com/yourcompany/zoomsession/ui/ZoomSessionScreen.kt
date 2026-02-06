@@ -170,7 +170,7 @@ fun ZoomSessionScreen(
                     .padding(end = 16.dp, bottom = 200.dp)
             ) {
                 Column(horizontalAlignment = Alignment.End) {
-                    activeReactions.takeLast(5).forEach { reaction ->
+                    activeReactions.takeLast(10).forEach { reaction ->
                         AnimatedReactionBubble(reaction)
                     }
                 }

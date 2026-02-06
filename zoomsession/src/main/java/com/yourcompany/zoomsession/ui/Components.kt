@@ -223,7 +223,7 @@ fun AnimatedReactionBubble(reaction: ReactionEmoji) {
             ) {
                 Text(reaction.emoji, fontSize = 24.sp)
                 Spacer(Modifier.width(8.dp))
-                Text(reaction.senderName.split(" ").first(), fontSize = 12.sp, color = Color.Gray)
+                Text(reaction.senderName, fontSize = 12.sp, color = Color.Gray)
             }
         }
     }
