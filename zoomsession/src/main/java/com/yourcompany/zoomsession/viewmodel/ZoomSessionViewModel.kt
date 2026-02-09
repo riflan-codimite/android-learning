@@ -121,20 +121,24 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 val isFromSelf = msg.isSelfSend
                 val sdkMessageId = msg.getMessageId()
 
-                if (isFromSelf && sdkMessageId != null) {
-                    chatMessages.value = chatMessages.value.map { chatMsg ->
-                        if (chatMsg.isFromMe && chatMsg.messageId.startsWith("pending_") && chatMsg.message == msg.getContent()) {
-                            chatMsg.copy(messageId = sdkMessageId)
-                        } else {
-                            chatMsg
-                        }
-                    }
-                } else if (!isFromSelf) {
+                // Parse out [msgId:...] prefix that web clients embed in content
+                val rawContent = msg.getContent() ?: ""
+                val webMsgIdRegex = Regex("""\[msgId:([^\]]+)]""")
+                val webMsgIdMatch = webMsgIdRegex.find(rawContent)
+                val webMsgId = webMsgIdMatch?.groupValues?.get(1)
+                val cleanContent = if (webMsgIdMatch != null) rawContent.substring(webMsgIdMatch.range.last + 1) else rawContent
+
+                // Use webMsgId if present (for reaction matching with web clients), fallback to SDK messageId
+                val resolvedMessageId = webMsgId ?: sdkMessageId ?: java.util.UUID.randomUUID().toString()
+
+                if (isFromSelf) {
+                    // Self-sent message already added optimistically with the same msgId - skip
+                } else {
                     addChatMessage(
                         ChatMessage(
-                            messageId = sdkMessageId ?: java.util.UUID.randomUUID().toString(),
+                            messageId = resolvedMessageId,
                             senderName = msg.getSenderUser()?.userName ?: "Unknown",
-                            message = msg.getContent() ?: "",
+                            message = cleanContent,
                             isFromMe = false
                         )
                     )
@@ -146,17 +150,21 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         override fun onCommandReceived(sender: ZoomVideoSDKUser?, strCmd: String?) {
-            Log.d(TAG, "Command received from ${sender?.userName}: $strCmd")
             strCmd?.let { cmd ->
                 try {
                     val json = org.json.JSONObject(cmd)
                     val type = json.optString("type")
                     when (type) {
-                        "chat_reaction" -> {
+                        "chatReaction" -> {
                             val messageId = json.getString("messageId")
                             val emoji = json.getString("emoji")
                             val odUserId = json.getString("userId")
                             val userName = json.optString("userName", sender?.userName ?: "Unknown")
+                            Log.d(TAG, "===== REACTION RECEIVED =====")
+                            Log.d(TAG, "raw JSON: $json")
+                            Log.d(TAG, "messageId: '$messageId', emoji: $emoji, userId: '$odUserId', userName: '$userName'")
+                            Log.d(TAG, "Stored messageIds: ${chatMessages.value.map { "'${it.messageId}'" }}")
+                            Log.d(TAG, "=============================")
                             updateMessageReaction(messageId, emoji, odUserId, userName)
                         }
                         "toggle_video" -> {
@@ -361,22 +369,30 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun sendChatMessage(message: String) {
         if (message.isBlank()) return
+        val msgId = "${System.currentTimeMillis()}-${java.util.UUID.randomUUID().toString().take(8)}"
         addChatMessage(
             ChatMessage(
-                messageId = "pending_${System.nanoTime()}",
+                messageId = msgId,
                 senderName = displayName,
                 message = message,
                 isFromMe = true
             )
         )
         try {
-            sdk.chatHelper?.sendChatToAll(message)
+            // Embed [msgId:] prefix so web clients can match reactions to this message
+            sdk.chatHelper?.sendChatToAll("[msgId:$msgId]$message")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send chat: ${e.message}")
         }
     }
 
     fun updateMessageReaction(messageId: String, emoji: String, userId: String, userName: String) {
+        Log.d(TAG, "===== UPDATE MESSAGE REACTION =====")
+        Log.d(TAG, "Looking for messageId: '$messageId'")
+        Log.d(TAG, "Available messageIds: ${chatMessages.value.map { "'${it.messageId}'" }}")
+        val found = chatMessages.value.any { it.messageId == messageId }
+        Log.d(TAG, "Message found: $found")
+        Log.d(TAG, "===================================")
         chatMessages.value = chatMessages.value.map { message ->
             if (message.messageId == messageId) {
                 val updatedReactions = message.reactions.toMutableMap()
@@ -385,26 +401,37 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                     users[userId] = userName
                     updatedReactions[emoji] = users
                 }
-                message.copy(reactions = updatedReactions)
+                val updated = message.copy(reactions = updatedReactions)
+                Log.d(TAG, "Updated message reactions: ${updated.reactions}")
+                updated
             } else {
                 message
             }
         }
+        Log.d(TAG, "After update - messages with reactions: ${chatMessages.value.filter { it.reactions.isNotEmpty() }.map { "${it.messageId}: ${it.reactions}" }}")
     }
 
     fun sendChatReaction(messageId: String, emoji: String) {
+        Log.d(TAG, "===== SEND CHAT REACTION =====")
+        Log.d(TAG, "messageId: '$messageId', emoji: $emoji")
         val myUser = sdk.session?.mySelf
         val odUserId = myUser?.userID ?: displayName
+        Log.d(TAG, "myUserId: '$odUserId', displayName: '$displayName'")
+        Log.d(TAG, "cmdChannel available: ${sdk.cmdChannel != null}")
         updateMessageReaction(messageId, emoji, odUserId, displayName)
         try {
             val reactionJson = org.json.JSONObject().apply {
-                put("type", "chat_reaction")
+                put("type", "chatReaction")
                 put("messageId", messageId)
                 put("emoji", emoji)
                 put("userId", odUserId)
                 put("userName", displayName)
+                put("timestamp", System.currentTimeMillis())
             }
-            sdk.cmdChannel?.sendCommand(null, reactionJson.toString())
+            Log.d(TAG, "Sending reaction JSON: $reactionJson")
+            val result = sdk.cmdChannel?.sendCommand(null, reactionJson.toString())
+            Log.d(TAG, "sendCommand result: $result")
+            Log.d(TAG, "==============================")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send chat reaction: ${e.message}")
         }
