@@ -1,6 +1,15 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+val envFile = rootProject.file(".env")
+val envProperties = Properties().apply {
+    if (envFile.exists()) {
+        envFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -15,6 +24,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "ZOOM_SDK_KEY", "\"${envProperties.getProperty("ZOOM_SDK_KEY", "")}\"")
+        buildConfigField("String", "ZOOM_SDK_SECRET", "\"${envProperties.getProperty("ZOOM_SDK_SECRET", "")}\"")
     }
 
     buildTypes {
@@ -32,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

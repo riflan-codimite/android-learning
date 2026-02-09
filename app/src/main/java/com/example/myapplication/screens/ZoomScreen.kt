@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.BuildConfig
 import com.yourcompany.zoomsession.JWTGenerator
 import com.yourcompany.zoomsession.ZoomSDKHelper
 import com.yourcompany.zoomsession.ZoomSessionActivity
@@ -42,15 +43,15 @@ fun ZoomScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Hardcoded SDK Credentials
-    val sdkKey = "bKKscQ57BbpAeytGc2gV4QhDTg0oFHZKj3IR"
-    val sdkSecret = "iRRvbwgbDPnEG38yt7epYG8Vvn5vRu4foxXv"
+    // SDK Credentials from .env via BuildConfig
+    val sdkKey = BuildConfig.ZOOM_SDK_KEY
+    val sdkSecret = BuildConfig.ZOOM_SDK_SECRET
 
     // Session details
-    var sessionName by remember { mutableStateOf("session") }
-    var displayName by remember { mutableStateOf("") }
+    var sessionName by remember { mutableStateOf("session2") }
+    var displayName by remember { mutableStateOf("riflan") }
     var sessionPassword by remember { mutableStateOf("") }
-    var isHost by remember { mutableStateOf(true) }
+    var isHost by remember { mutableStateOf(false) }
 
     // Status
     var statusMessage by remember { mutableStateOf("") }
