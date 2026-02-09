@@ -228,41 +228,155 @@ fun MoreOptionsBottomSheet(
 // ==================== CHAT BOTTOM SHEET ====================
 
 /**
+ * Segmented pill tab selector for switching between Everyone and Host chat tabs.
+ */
+@Composable
+fun ChatTabSelector(
+    selectedTab: ChatTab,
+    unreadHostMessageCount: Int,
+    onTabSelected: (ChatTab) -> Unit
+) {
+    Surface(
+        color = ZoomColors.DarkOverlay,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.padding(horizontal = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp)
+        ) {
+            ChatTab.entries.forEach { tab ->
+                ChatTabPill(
+                    tab = tab,
+                    isSelected = selectedTab == tab,
+                    badgeCount = if (tab == ChatTab.HOST && selectedTab != ChatTab.HOST) unreadHostMessageCount else 0,
+                    onClick = { onTabSelected(tab) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual pill button within the chat tab selector, with optional unread badge.
+ */
+@Composable
+fun ChatTabPill(
+    tab: ChatTab,
+    isSelected: Boolean,
+    badgeCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        color = if (isSelected) ZoomColors.Primary else Color.Transparent,
+        shape = RoundedCornerShape(20.dp),
+        modifier = modifier
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    tab.displayName,
+                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+                if (badgeCount > 0) {
+                    Spacer(Modifier.width(6.dp))
+                    Surface(
+                        color = ZoomColors.Error,
+                        shape = CircleShape,
+                        modifier = Modifier.size(18.dp)
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                if (badgeCount > 99) "99+" else badgeCount.toString(),
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * Chat interface bottom sheet with message list and input field.
  * Supports message reactions via long-press.
+ * Participants see a tab switcher for Everyone / Host private chat.
  */
 @Composable
 fun ChatBottomSheetContent(
     messages: List<ChatMessage>,
+    hostMessages: List<ChatMessage>,
+    selectedTab: ChatTab,
+    isHost: Boolean,
+    unreadHostMessageCount: Int,
+    onTabSelected: (ChatTab) -> Unit,
     onSendMessage: (String) -> Unit,
+    onSendHostMessage: (String) -> Unit,
     onReactionClick: (String, String) -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
+    val displayedMessages = if (selectedTab == ChatTab.HOST && !isHost) hostMessages else messages
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
+    LaunchedEffect(displayedMessages.size) { if (displayedMessages.isNotEmpty()) listState.animateScrollToItem(displayedMessages.size - 1) }
 
     Column(Modifier.fillMaxWidth().height(500.dp)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-//            Icon(Icons.Default.Email, null, tint = Color.White, modifier = Modifier.size(24.dp))
-//            Spacer(Modifier.width(12.dp))
             Text("Chat", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-//            Spacer(Modifier.weight(1f))
-//            Text("${messages.size} messages", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+        }
+
+        // Show tab selector for participants only
+        if (!isHost) {
+            ChatTabSelector(
+                selectedTab = selectedTab,
+                unreadHostMessageCount = unreadHostMessageCount,
+                onTabSelected = onTabSelected
+            )
+            Spacer(Modifier.height(8.dp))
         }
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
 
-        LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            items(messages) { message ->
-                ChatMessageBubble(message, onReactionClick)
+        if (displayedMessages.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    if (selectedTab == ChatTab.HOST && !isHost) "No messages with host yet"
+                    else "No messages yet",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                items(displayedMessages) { message ->
+                    ChatMessageBubble(message, onReactionClick)
+                }
             }
         }
+
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },
-                placeholder = { Text("Type a message...", color = Color.White.copy(alpha = 0.5f)) },
+                placeholder = {
+                    Text(
+                        if (selectedTab == ChatTab.HOST && !isHost) "Message host privately..." else "Type a message...",
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                },
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true,
@@ -275,7 +389,12 @@ fun ChatBottomSheetContent(
             )
             Spacer(Modifier.width(8.dp))
             FilledIconButton(
-                onClick = { if (messageText.isNotBlank()) { onSendMessage(messageText); messageText = "" } },
+                onClick = {
+                    if (messageText.isNotBlank()) {
+                        if (selectedTab == ChatTab.HOST && !isHost) onSendHostMessage(messageText) else onSendMessage(messageText)
+                        messageText = ""
+                    }
+                },
                 modifier = Modifier.size(48.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = ZoomColors.Primary)
             ) {
@@ -966,7 +1085,13 @@ private fun ChatBottomSheetContentPreview() {
     )
     ChatBottomSheetContent(
         messages = sampleMessages,
+        hostMessages = emptyList(),
+        selectedTab = ChatTab.EVERYONE,
+        isHost = false,
+        unreadHostMessageCount = 2,
+        onTabSelected = {},
         onSendMessage = {},
+        onSendHostMessage = {},
         onReactionClick = { _, _ -> }
     )
 }

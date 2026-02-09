@@ -76,6 +76,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     // ==================== DATA LISTS ====================
     var chatMessages = mutableStateOf(listOf<ChatMessage>())
+    var hostChatMessages = mutableStateOf(listOf<ChatMessage>())
+    var selectedChatTab = mutableStateOf(ChatTab.EVERYONE)
+    var unreadHostMessageCount = mutableStateOf(0)
     var transcriptionMessages = mutableStateOf(listOf<TranscriptionMessage>())
     var activeReactions = mutableStateOf(listOf<ReactionEmoji>())
     var raisedHands = mutableStateOf(listOf<RaisedHand>())
@@ -84,6 +87,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var isHostSharing = mutableStateOf(false)
     var hostVideoVersion = mutableStateOf(0)
     var isHostVideoOn = mutableStateOf(false)
+    var isHostInSession = mutableStateOf(false)
 
     // ==================== ZOOM SDK EVENT LISTENER ====================
     val zoomListener = object : ZoomVideoSDKDelegate {
@@ -92,10 +96,15 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             statusMessage.value = "Connected"
             updateParticipantCount()
             ensureAudioVideoOff()
-            // Pick up initial host video state for participants
-            val hostUser = sdk.session?.sessionHost
-            if (hostUser != null) {
-                isHostVideoOn.value = hostUser.videoCanvas != null
+            // If we are the host, we're in session. Otherwise check if host is already present.
+            if (isHost) {
+                isHostInSession.value = true
+            } else {
+                val hostUser = sdk.session?.sessionHost
+                isHostInSession.value = hostUser != null
+                if (hostUser != null) {
+                    isHostVideoOn.value = hostUser.videoCanvas != null
+                }
             }
         }
 
@@ -117,6 +126,13 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onUserJoin(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
             updateParticipantCount()
+            // Detect when the host joins
+            if (!isHost) {
+                val hostUser = sdk.session?.sessionHost
+                if (hostUser != null) {
+                    isHostInSession.value = true
+                }
+            }
         }
 
         override fun onUserLeave(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
@@ -138,8 +154,27 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 // Use webMsgId if present (for reaction matching with web clients), fallback to SDK messageId
                 val resolvedMessageId = webMsgId ?: sdkMessageId ?: java.util.UUID.randomUUID().toString()
 
+                // Determine if this is a private (direct) message
+                val isPrivateMessage = msg.getReceiverUser() != null
+
                 if (isFromSelf) {
                     // Self-sent message already added optimistically with the same msgId - skip
+                } else if (isPrivateMessage) {
+                    addHostChatMessage(
+                        ChatMessage(
+                            messageId = resolvedMessageId,
+                            senderName = msg.getSenderUser()?.userName ?: "Unknown",
+                            message = cleanContent,
+                            isFromMe = false,
+                            isPrivate = true
+                        )
+                    )
+                    if (!showChat.value || selectedChatTab.value != ChatTab.HOST) {
+                        unreadHostMessageCount.value++
+                    }
+                    if (!showChat.value) {
+                        unreadMessageCount.value++
+                    }
                 } else {
                     addChatMessage(
                         ChatMessage(
@@ -374,6 +409,34 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         chatMessages.value = chatMessages.value + message
     }
 
+    private fun addHostChatMessage(message: ChatMessage) {
+        hostChatMessages.value = hostChatMessages.value + message
+    }
+
+    fun sendHostChatMessage(message: String) {
+        if (message.isBlank()) return
+        val msgId = "${System.currentTimeMillis()}-${java.util.UUID.randomUUID().toString().take(8)}"
+        addHostChatMessage(
+            ChatMessage(
+                messageId = msgId,
+                senderName = displayName,
+                message = message,
+                isFromMe = true,
+                isPrivate = true
+            )
+        )
+        try {
+            val hostUser = sdk.session?.sessionHost
+            if (hostUser != null) {
+                sdk.chatHelper?.sendChatToUser(hostUser, "[msgId:$msgId]$message")
+            } else {
+                Log.e(TAG, "Cannot send private message: host user not found")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send host chat: ${e.message}")
+        }
+    }
+
     fun sendChatMessage(message: String) {
         if (message.isBlank()) return
         val msgId = "${System.currentTimeMillis()}-${java.util.UUID.randomUUID().toString().take(8)}"
@@ -394,7 +457,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun updateMessageReaction(messageId: String, emoji: String, userId: String, userName: String) {
-        chatMessages.value = chatMessages.value.map { message ->
+        val reactionMapper = { message: ChatMessage ->
             if (message.messageId == messageId) {
                 val updatedReactions = message.reactions.toMutableMap()
                 val users = updatedReactions.getOrDefault(emoji, emptyMap()).toMutableMap()
@@ -407,6 +470,8 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 message
             }
         }
+        chatMessages.value = chatMessages.value.map(reactionMapper)
+        hostChatMessages.value = hostChatMessages.value.map(reactionMapper)
     }
 
     fun sendChatReaction(messageId: String, emoji: String) {
@@ -463,7 +528,11 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         isMuted.value = true
         isInSession.value = false
         isHostVideoOn.value = false
+        isHostInSession.value = false
         chatMessages.value = emptyList()
+        hostChatMessages.value = emptyList()
+        selectedChatTab.value = ChatTab.EVERYONE
+        unreadHostMessageCount.value = 0
     }
 
     // ==================== AUDIO/VIDEO CONTROLS ====================

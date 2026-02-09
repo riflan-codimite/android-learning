@@ -21,8 +21,17 @@ data class ChatMessage(
     val message: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isFromMe: Boolean = false,
+    val isPrivate: Boolean = false,
     val reactions: Map<String, Map<String, String>> = emptyMap()
 )
+
+/**
+ * Enum representing the chat tab selection in the bottom sheet.
+ */
+enum class ChatTab(val displayName: String) {
+    EVERYONE("Everyone"),
+    HOST("Host")
+}
 
 /**
  * Data class representing a live transcription/caption message.

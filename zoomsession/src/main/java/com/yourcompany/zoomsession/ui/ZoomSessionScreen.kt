@@ -59,6 +59,9 @@ fun ZoomSessionScreen(
     availableTranscriptionLanguages: List<String>,
     unreadMessageCount: Int,
     chatMessages: List<ChatMessage>,
+    hostChatMessages: List<ChatMessage> = emptyList(),
+    selectedChatTab: ChatTab = ChatTab.EVERYONE,
+    unreadHostMessageCount: Int = 0,
     transcriptionMessages: List<TranscriptionMessage>,
     activeReactions: List<ReactionEmoji>,
     raisedHands: List<RaisedHand>,
@@ -75,6 +78,8 @@ fun ZoomSessionScreen(
     onToggleRecording: () -> Unit,
     onSendReaction: (String) -> Unit,
     onSendMessage: (String) -> Unit,
+    onSendHostMessage: (String) -> Unit = {},
+    onChatTabSelected: (ChatTab) -> Unit = {},
     onChatReaction: (String, String) -> Unit,
     onToggleParticipantMute: (String) -> Unit,
     onLeaveSession: () -> Unit,
@@ -85,7 +90,8 @@ fun ZoomSessionScreen(
     onDismissUnmuteRequest: () -> Unit = {},
     isHostSharing: Boolean = false,
     hostVideoVersion: Int = 0,
-    isHostVideoOn: Boolean = false
+    isHostVideoOn: Boolean = false,
+    isHostInSession: Boolean = false
 ) {
     val chatSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val whiteboardSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -119,6 +125,52 @@ fun ZoomSessionScreen(
                     Text(
                         statusMessage,
                         color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        // Waiting room for participant when host hasn't joined yet
+        if (!isHost && isInSession && !isHostInSession) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(100.dp),
+                        shape = CircleShape,
+                        color = ZoomColors.DarkAvatarBg
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                displayName.take(1).uppercase(),
+                                color = Color.White,
+                                fontSize = 40.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        displayName,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Waiting for host to join...",
+                        color = Color.White.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
                 }
@@ -525,7 +577,17 @@ fun ZoomSessionScreen(
     // Chat Bottom Sheet
     if (showChat) {
         ModalBottomSheet(onDismissRequest = onToggleChat, sheetState = chatSheetState, containerColor = ZoomColors.DarkSurface, shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)) {
-            ChatBottomSheetContent(chatMessages, onSendMessage, onChatReaction)
+            ChatBottomSheetContent(
+                messages = chatMessages,
+                hostMessages = hostChatMessages,
+                selectedTab = selectedChatTab,
+                isHost = isHost,
+                unreadHostMessageCount = unreadHostMessageCount,
+                onTabSelected = onChatTabSelected,
+                onSendMessage = onSendMessage,
+                onSendHostMessage = onSendHostMessage,
+                onReactionClick = onChatReaction
+            )
         }
     }
 

@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.yourcompany.zoomsession.model.ChatTab
 import com.yourcompany.zoomsession.ui.ZoomSessionScreen
 import com.yourcompany.zoomsession.viewmodel.ZoomSessionViewModel
 import us.zoom.sdk.ZoomVideoSDK
@@ -115,6 +116,9 @@ class ZoomSessionActivity : ComponentActivity() {
                     availableTranscriptionLanguages = vm.availableTranscriptionLanguages.value,
                     unreadMessageCount = vm.unreadMessageCount.value,
                     chatMessages = vm.chatMessages.value,
+                    hostChatMessages = vm.hostChatMessages.value,
+                    selectedChatTab = vm.selectedChatTab.value,
+                    unreadHostMessageCount = vm.unreadHostMessageCount.value,
                     transcriptionMessages = vm.transcriptionMessages.value,
                     activeReactions = vm.activeReactions.value,
                     raisedHands = vm.raisedHands.value,
@@ -146,6 +150,11 @@ class ZoomSessionActivity : ComponentActivity() {
                     onSendReaction = { emoji -> vm.sendReaction(emoji) },
                     onToggleParticipantMute = { participantId -> vm.toggleParticipantMute(participantId) },
                     onSendMessage = { vm.sendChatMessage(it) },
+                    onSendHostMessage = { vm.sendHostChatMessage(it) },
+                    onChatTabSelected = { tab ->
+                        vm.selectedChatTab.value = tab
+                        if (tab == ChatTab.HOST) vm.unreadHostMessageCount.value = 0
+                    },
                     onChatReaction = { messageId, emoji -> vm.sendChatReaction(messageId, emoji) },
                     onLeaveSession = {
                         vm.leaveSession()
@@ -158,7 +167,8 @@ class ZoomSessionActivity : ComponentActivity() {
                     onDismissUnmuteRequest = { vm.dismissUnmuteRequest() },
                     isHostSharing = vm.isHostSharing.value,
                     hostVideoVersion = vm.hostVideoVersion.value,
-                    isHostVideoOn = vm.isHostVideoOn.value
+                    isHostVideoOn = vm.isHostVideoOn.value,
+                    isHostInSession = vm.isHostInSession.value
                 )
             }
         }
