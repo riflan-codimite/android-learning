@@ -160,11 +160,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                             val emoji = json.getString("emoji")
                             val odUserId = json.getString("userId")
                             val userName = json.optString("userName", sender?.userName ?: "Unknown")
-                            Log.d(TAG, "===== REACTION RECEIVED =====")
-                            Log.d(TAG, "raw JSON: $json")
-                            Log.d(TAG, "messageId: '$messageId', emoji: $emoji, userId: '$odUserId', userName: '$userName'")
-                            Log.d(TAG, "Stored messageIds: ${chatMessages.value.map { "'${it.messageId}'" }}")
-                            Log.d(TAG, "=============================")
                             updateMessageReaction(messageId, emoji, odUserId, userName)
                         }
                         "toggle_video" -> {
@@ -174,12 +169,14 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                             if (!isHost) toggleMute()
                         }
                         "raiseHand" -> {
-                            val userId = json.optString("userId", "")
+                            // Web sends userId as number, read as string for consistent comparison
+                            val userId = json.opt("userId")?.toString() ?: ""
                             val raised = json.optBoolean("raised", true)
                             val timestamp = json.optLong("timestamp", System.currentTimeMillis())
                             val userName = sender?.userName ?: "Someone"
                             if (raised) {
-                                raisedHands.value = raisedHands.value + RaisedHand(
+                                // Remove existing entry first to avoid duplicates, then add
+                                raisedHands.value = raisedHands.value.filter { it.userId != userId } + RaisedHand(
                                     userId = userId,
                                     userName = userName,
                                     raised = true,
@@ -387,12 +384,6 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun updateMessageReaction(messageId: String, emoji: String, userId: String, userName: String) {
-        Log.d(TAG, "===== UPDATE MESSAGE REACTION =====")
-        Log.d(TAG, "Looking for messageId: '$messageId'")
-        Log.d(TAG, "Available messageIds: ${chatMessages.value.map { "'${it.messageId}'" }}")
-        val found = chatMessages.value.any { it.messageId == messageId }
-        Log.d(TAG, "Message found: $found")
-        Log.d(TAG, "===================================")
         chatMessages.value = chatMessages.value.map { message ->
             if (message.messageId == messageId) {
                 val updatedReactions = message.reactions.toMutableMap()
@@ -401,23 +392,16 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                     users[userId] = userName
                     updatedReactions[emoji] = users
                 }
-                val updated = message.copy(reactions = updatedReactions)
-                Log.d(TAG, "Updated message reactions: ${updated.reactions}")
-                updated
+                message.copy(reactions = updatedReactions)
             } else {
                 message
             }
         }
-        Log.d(TAG, "After update - messages with reactions: ${chatMessages.value.filter { it.reactions.isNotEmpty() }.map { "${it.messageId}: ${it.reactions}" }}")
     }
 
     fun sendChatReaction(messageId: String, emoji: String) {
-        Log.d(TAG, "===== SEND CHAT REACTION =====")
-        Log.d(TAG, "messageId: '$messageId', emoji: $emoji")
         val myUser = sdk.session?.mySelf
         val odUserId = myUser?.userID ?: displayName
-        Log.d(TAG, "myUserId: '$odUserId', displayName: '$displayName'")
-        Log.d(TAG, "cmdChannel available: ${sdk.cmdChannel != null}")
         updateMessageReaction(messageId, emoji, odUserId, displayName)
         try {
             val reactionJson = org.json.JSONObject().apply {
@@ -428,10 +412,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 put("userName", displayName)
                 put("timestamp", System.currentTimeMillis())
             }
-            Log.d(TAG, "Sending reaction JSON: $reactionJson")
-            val result = sdk.cmdChannel?.sendCommand(null, reactionJson.toString())
-            Log.d(TAG, "sendCommand result: $result")
-            Log.d(TAG, "==============================")
+            sdk.cmdChannel?.sendCommand(null, reactionJson.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send chat reaction: ${e.message}")
         }
@@ -665,6 +646,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 val command = org.json.JSONObject().apply {
                     put("type", "raiseHand")
                     put("userId", odUserId)
+                    put("userName", displayName)
                     put("raised", raised)
                     put("timestamp", System.currentTimeMillis())
                 }.toString()
