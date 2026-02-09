@@ -83,6 +83,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var unmuteRequest = mutableStateOf<String?>(null)
     var isHostSharing = mutableStateOf(false)
     var hostVideoVersion = mutableStateOf(0)
+    var isHostVideoOn = mutableStateOf(false)
 
     // ==================== ZOOM SDK EVENT LISTENER ====================
     val zoomListener = object : ZoomVideoSDKDelegate {
@@ -91,8 +92,14 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             statusMessage.value = "Connected"
             updateParticipantCount()
             ensureAudioVideoOff()
+            // Pick up initial host video state for participants
+            val hostUser = sdk.session?.sessionHost
+            if (hostUser != null) {
+                isHostVideoOn.value = hostUser.videoCanvas != null
+            }
         }
 
+        @Deprecated("Deprecated in SDK", ReplaceWith("onSessionLeave(reason)"))
         override fun onSessionLeave() {
             isInSession.value = false
             statusMessage.value = "Disconnected"
@@ -272,6 +279,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             val hostUser = session.sessionHost ?: return
             val hostChanged = userList?.any { it.userID == hostUser.userID } ?: false
             if (hostChanged) {
+                isHostVideoOn.value = hostUser.videoCanvas != null
                 hostVideoVersion.value++
             }
         }
@@ -306,11 +314,13 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         override fun onUserRecordingConsent(user: ZoomVideoSDKUser?) {}
         override fun onProxySettingNotification(handler: ZoomVideoSDKProxySettingHandler?) {}
         override fun onSSLCertVerifiedFailNotification(handler: ZoomVideoSDKSSLCertificateInfo?) {}
+        @Deprecated("Deprecated in SDK")
         override fun onShareNetworkStatusChanged(shareNetworkStatus: ZoomVideoSDKNetworkStatus?, isSendingShare: Boolean) {}
         override fun onShareContentChanged(shareHelper: ZoomVideoSDKShareHelper?, userInfo: ZoomVideoSDKUser?, shareAction: ZoomVideoSDKShareAction?) {}
         override fun onChatDeleteMessageNotify(chatHelper: ZoomVideoSDKChatHelper?, msgID: String?, deleteBy: ZoomVideoSDKChatMessageDeleteType?) {}
         override fun onChatPrivilegeChanged(chatHelper: ZoomVideoSDKChatHelper?, currentPrivilege: ZoomVideoSDKChatPrivilegeType?) {}
         override fun onCameraControlRequestReceived(user: ZoomVideoSDKUser?, requestType: ZoomVideoSDKCameraControlRequestType?, requestHandler: ZoomVideoSDKCameraControlRequestHandler?) {}
+        @Deprecated("Deprecated in SDK")
         override fun onUserVideoNetworkStatusChanged(status: ZoomVideoSDKNetworkStatus?, user: ZoomVideoSDKUser?) {}
         override fun onCallCRCDeviceStatusChanged(status: ZoomVideoSDKCRCCallStatus?) {}
         override fun onVideoCanvasSubscribeFail(fail_reason: ZoomVideoSDKVideoSubscribeFailReason?, pUser: ZoomVideoSDKUser?, view: ZoomVideoSDKVideoView?) {}
@@ -441,7 +451,19 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun leaveSession() {
-        sdk.leaveSession(isHost)
+        try {
+            sdk.videoHelper?.stopVideo()
+            sdk.session?.mySelf?.let { sdk.audioHelper?.muteAudio(it) }
+            sdk.leaveSession(isHost)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during leave: ${e.message}")
+        }
+        // Clear state
+        isVideoOn.value = false
+        isMuted.value = true
+        isInSession.value = false
+        isHostVideoOn.value = false
+        chatMessages.value = emptyList()
     }
 
     // ==================== AUDIO/VIDEO CONTROLS ====================

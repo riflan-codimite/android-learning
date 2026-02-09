@@ -84,7 +84,8 @@ fun ZoomSessionScreen(
     onApproveUnmuteRequest: (String) -> Unit = {},
     onDismissUnmuteRequest: () -> Unit = {},
     isHostSharing: Boolean = false,
-    hostVideoVersion: Int = 0
+    hostVideoVersion: Int = 0,
+    isHostVideoOn: Boolean = false
 ) {
     val chatSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val whiteboardSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -99,7 +100,30 @@ fun ZoomSessionScreen(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         // Video tile - FULL SCREEN
-        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing, hostVideoVersion)
+        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing, hostVideoVersion, isHostVideoOn)
+
+        // Loading overlay while connecting
+        if (!isInSession) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        statusMessage,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
 
         // Recording indicator
         if (isRecording) {
@@ -216,28 +240,12 @@ fun ZoomSessionScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            sessionName,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isInSession) ZoomColors.Success else Color.Yellow)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                statusMessage,
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                    Text(
+                        sessionName,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
                 Surface(
@@ -544,7 +552,7 @@ fun ZoomSessionScreen(
  * Host sees own camera; participant always sees host's camera.
  */
 @Composable
-fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false, hostVideoVersion: Int = 0) {
+fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false, hostVideoVersion: Int = 0, isHostVideoOn: Boolean = false) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -604,7 +612,7 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                     hostUser?.shareActionList?.firstOrNull()?.shareCanvas?.unSubscribe(view)
                 }
             )
-        } else if (!isHost) {
+        } else if (!isHost && isHostVideoOn) {
             AndroidView(
                 factory = { context ->
                     ZoomVideoSDKVideoView(context).apply {
@@ -653,12 +661,42 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        if (isHost) "$displayName (You)" else displayName,
+                        displayName,
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
+        } else if (!isHost && !isHostVideoOn) {
+            // Participant's own avatar (camera is off by default)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = CircleShape,
+                    color = ZoomColors.DarkAvatarBg
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            displayName.take(1).uppercase(),
+                            color = Color.White,
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(displayName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (isMuted) "Muted" else "Unmuted",
+                    color = if (isMuted) ZoomColors.Error else ZoomColors.Success,
+                    fontSize = 14.sp
+                )
             }
         } else if (isHost) {
             Column(
@@ -809,7 +847,8 @@ private fun ZoomSessionScreenParticipantPreview() {
         unmuteRequest = null,
         onApproveUnmuteRequest = {},
         onDismissUnmuteRequest = {},
-        isHostSharing = false
+        isHostSharing = false,
+        isHostVideoOn = false
     )
 }
 
