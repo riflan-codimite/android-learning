@@ -102,186 +102,30 @@ fun ZoomSessionScreen(
     var showParticipants by remember { mutableStateOf(false) }
     val participantsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Derive host display name from remote participants for the video tile
+    val hostDisplayName = if (!isHost) {
+        remoteParticipants.firstOrNull { it.role == ParticipantRole.HOST }?.name ?: "Host"
+    } else ""
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
-        // Video tile - FULL SCREEN
-        SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing, hostVideoVersion, isHostVideoOn)
-
-        // Loading overlay while connecting
-        if (!isInSession) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        statusMessage,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-
-        // Waiting room for participant when host hasn't joined yet
+        // Video tile / Waiting room - FULL SCREEN (background layer)
         if (!isHost && isInSession && !isHostInSession) {
+            // Waiting room: sits behind the bars, content centered between them
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(
-                        modifier = Modifier.size(100.dp),
-                        shape = CircleShape,
-                        color = ZoomColors.DarkAvatarBg
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                displayName.take(1).uppercase(),
-                                color = Color.White,
-                                fontSize = 40.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        displayName,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(32.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Waiting for host to join...",
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 14.sp
-                    )
-                }
-            }
+                    .background(Color(0xFF202124))
+            ) {}
+        } else {
+            SelfVideoTile(displayName, isVideoOn, isMuted, isHost, isHostSharing, hostVideoVersion, isHostVideoOn, hostDisplayName)
         }
 
-        // Recording indicator
-        if (isRecording) {
-            Surface(
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp),
-                color = ZoomColors.Error,
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color.White))
-                    Spacer(Modifier.width(8.dp))
-                    Text("REC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-            }
-        }
-
-        // Raised hands overlay (persistent - top right)
-        if (raisedHands.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 100.dp, end = 16.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.End) {
-                    raisedHands.forEach { hand ->
-                        RaisedHandBubble(hand)
-                    }
-                }
-            }
-        }
-
-        // Host notification overlay
-        if (hostNotification != null) {
-            LaunchedEffect(hostNotification) {
-                kotlinx.coroutines.delay(4000)
-                onDismissHostNotification()
-            }
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = if (isRecording) 120.dp else 80.dp),
-                color = ZoomColors.Orange,
-                shape = RoundedCornerShape(12.dp),
-                shadowElevation = 4.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        hostNotification,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        // Active reactions overlay (animated - bottom right)
-        if (activeReactions.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 200.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.End) {
-                    activeReactions.takeLast(10).forEach { reaction ->
-                        AnimatedReactionBubble(reaction)
-                    }
-                }
-            }
-        }
-
-        // Live transcription overlay
-        if (showTranscription && isTranscriptionEnabled && transcriptionMessages.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 130.dp, start = 16.dp, end = 16.dp)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    color = Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = transcriptionMessages.last().originalText,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                        maxLines = 3,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)
-                    )
-                }
-            }
-        }
-
-        // Top bar
+        // Top bar (fixed)
         Surface(
             Modifier.fillMaxWidth().align(Alignment.TopCenter),
-            color = Color.Black.copy(alpha = 0.6f)
+            color = ZoomColors.DarkSurface
         ) {
             Row(
                 Modifier
@@ -327,12 +171,12 @@ fun ZoomSessionScreen(
             }
         }
 
-        // Bottom controls - Material 3 styled
+        // Bottom controls - fixed
         Column(
             Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .background(Color.Black)
+                .background(ZoomColors.DarkSurface)
         ) {
             HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),
@@ -341,7 +185,7 @@ fun ZoomSessionScreen(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color.Black)
+                    .background(ZoomColors.DarkSurface)
                     .padding(horizontal = 8.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -386,7 +230,7 @@ fun ZoomSessionScreen(
                                 if (unreadMessageCount > 0) {
                                     Badge(
                                         containerColor = ZoomColors.Error,
-                                        modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                        modifier = Modifier.offset(x = (-20).dp, y = 12.dp)
                                     ) {
                                         Text(
                                             text = if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
@@ -491,6 +335,174 @@ fun ZoomSessionScreen(
                     .fillMaxWidth()
                     .navigationBarsPadding()
             )
+        }
+
+        // Waiting room content (centered between bars)
+        if (!isHost && isInSession && !isHostInSession) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Surface(
+                    modifier = Modifier.size(140.dp),
+                    shape = CircleShape,
+                    color = Color(0xFF5F6368)
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            displayName.take(1).uppercase(),
+                            color = Color.White,
+                            fontSize = 56.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    displayName,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+//                Spacer(Modifier.height(24.dp))
+//                CircularProgressIndicator(
+//                    color = Color.White,
+//                    modifier = Modifier.size(28.dp),
+//                    strokeWidth = 2.dp
+//                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Waiting for host to join...",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        // ==================== OVERLAYS (on top of bars) ====================
+
+        // Loading overlay while connecting
+        if (!isInSession) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        statusMessage,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        // Recording indicator
+        if (isRecording) {
+            Surface(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp, end = 16.dp),
+                color = ZoomColors.Error,
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color.White))
+//                    Spacer(Modifier.width(8.dp))
+//                    Text("REC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+
+        // Raised hands overlay (persistent - top right, on top of top bar)
+        if (raisedHands.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 20.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.End) {
+                    raisedHands.forEach { hand ->
+                        RaisedHandBubble(hand)
+                    }
+                }
+            }
+        }
+
+        // Host notification overlay
+        if (hostNotification != null) {
+            LaunchedEffect(hostNotification) {
+                kotlinx.coroutines.delay(4000)
+                onDismissHostNotification()
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = if (isRecording) 120.dp else 80.dp),
+                color = ZoomColors.Orange,
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        hostNotification,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // Active reactions overlay (animated - bottom right)
+        if (activeReactions.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 200.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.End) {
+                    activeReactions.takeLast(10).forEach { reaction ->
+                        AnimatedReactionBubble(reaction)
+                    }
+                }
+            }
+        }
+
+        // Live transcription overlay
+        if (showTranscription && isTranscriptionEnabled && transcriptionMessages.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 110.dp, start = 16.dp, end = 16.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = transcriptionMessages.last().originalText,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)
+                    )
+                }
+            }
         }
     }
 
@@ -614,7 +626,7 @@ fun ZoomSessionScreen(
  * Host sees own camera; participant always sees host's camera.
  */
 @Composable
-fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false, hostVideoVersion: Int = 0, isHostVideoOn: Boolean = false) {
+fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isHost: Boolean = true, isHostSharing: Boolean = false, hostVideoVersion: Int = 0, isHostVideoOn: Boolean = false, hostDisplayName: String = "Host") {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -731,34 +743,59 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                 }
             }
         } else if (!isHost && !isHostVideoOn) {
-            // Participant's own avatar (camera is off by default)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize()
+            // Google Meet-style host avatar tile
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF202124)),
+                contentAlignment = Alignment.Center
             ) {
+                // Large colored avatar circle
                 Surface(
-                    modifier = Modifier.size(120.dp),
+                    modifier = Modifier.size(140.dp),
                     shape = CircleShape,
-                    color = ZoomColors.DarkAvatarBg
+                    color = Color(0xFF5F6368)
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            displayName.take(1).uppercase(),
+                            hostDisplayName.take(1).uppercase(),
                             color = Color.White,
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 56.sp,
+                            fontWeight = FontWeight.Normal
                         )
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                Text(displayName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    if (isMuted) "Muted" else "Unmuted",
-                    color = if (isMuted) ZoomColors.Error else ZoomColors.Success,
-                    fontSize = 14.sp
-                )
+
+                // Host name label at bottom-left
+                Surface(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 12.dp, bottom = 12.dp),
+                    color = Color.Transparent
+                ) {
+                    Text(
+                        hostDisplayName,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Participant mute indicator at bottom-right
+                Surface(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 12.dp, bottom = 12.dp),
+                    color = if (isMuted) Color(0xFF3C4043) else Color.Transparent,
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        if (isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
+                        contentDescription = if (isMuted) "Muted" else "Unmuted",
+                        tint = if (isMuted) Color.White else ZoomColors.Success,
+                        modifier = Modifier.padding(6.dp).size(18.dp)
+                    )
+                }
             }
         } else if (isHost) {
             Column(
@@ -783,11 +820,7 @@ fun SelfVideoTile(displayName: String, isVideoOn: Boolean, isMuted: Boolean, isH
                 Spacer(Modifier.height(16.dp))
                 Text(displayName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    if (isMuted) "Muted" else "Unmuted",
-                    color = if (isMuted) ZoomColors.Error else ZoomColors.Success,
-                    fontSize = 14.sp
-                )
+
             }
         }
     }
