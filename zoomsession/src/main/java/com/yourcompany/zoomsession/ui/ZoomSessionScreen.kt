@@ -84,10 +84,14 @@ fun ZoomSessionScreen(
     onToggleParticipantMute: (String) -> Unit,
     onLeaveSession: () -> Unit,
     onSelectTranscriptionLanguage: (String) -> Unit,
-    onRequestUnmute: () -> Unit = {},
-    unmuteRequest: String? = null,
-    onApproveUnmuteRequest: (String) -> Unit = {},
-    onDismissUnmuteRequest: () -> Unit = {},
+    talkRequests: List<TalkRequest> = emptyList(),
+    talkPermissions: Set<String> = emptySet(),
+    isRequestingToTalk: Boolean = false,
+    onRequestToTalk: () -> Unit = {},
+    onCancelTalkRequest: () -> Unit = {},
+    onApproveTalkRequest: (String) -> Unit = {},
+    onRevokeTalkPermission: (String) -> Unit = {},
+    onDismissTalkRequest: (String) -> Unit = {},
     isHostSharing: Boolean = false,
     hostVideoVersion: Int = 0,
     isHostVideoOn: Boolean = false,
@@ -263,16 +267,30 @@ fun ZoomSessionScreen(
                         modifier = Modifier.weight(1f)
                     )
                 } else {
-                    // Participant view - mute, chat, raise hand, and more
+                    // Participant view - mic request / requesting / speaking, chat, raise hand, more
+                    val hasTalkPermission = talkPermissions.isNotEmpty()
                     BottomBarButton(
                         onClick = {
-                            if (isMuted) onRequestUnmute() else onToggleMute()
+                            when {
+                                hasTalkPermission -> onToggleMute() // Can speak freely
+                                isRequestingToTalk -> onCancelTalkRequest()
+                                else -> onRequestToTalk()
+                            }
                         },
-                        icon = if (isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
-                        label = if (isMuted) "Unmute" else "Mute",
-                        isActive = !isMuted,
-                        activeColor = Color.White,
-                        inactiveColor = ZoomColors.Error,
+                        icon = when {
+                            hasTalkPermission && !isMuted -> Icons.Outlined.Mic
+                            isRequestingToTalk -> Icons.Outlined.MicOff
+                            else -> Icons.Outlined.MicOff
+                        },
+                        label = when {
+                            hasTalkPermission && !isMuted -> "Speaking"
+                            hasTalkPermission && isMuted -> "Unmute"
+                            isRequestingToTalk -> "Requesting..."
+                            else -> "Request"
+                        },
+                        isActive = hasTalkPermission && !isMuted,
+                        activeColor = ZoomColors.Success,
+                        inactiveColor = if (isRequestingToTalk) ZoomColors.Warning else ZoomColors.Error,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -547,19 +565,20 @@ fun ZoomSessionScreen(
         }
     }
 
-    // Unmute Request Dialog (Host only)
-    if (unmuteRequest != null) {
+    // Talk Request Dialog (Host only) - shows first pending request
+    val firstTalkRequest = talkRequests.firstOrNull()
+    if (isHost && firstTalkRequest != null) {
         AlertDialog(
-            onDismissRequest = onDismissUnmuteRequest,
-            title = { Text("Unmute Request") },
-            text = { Text("$unmuteRequest is requesting to unmute their microphone.") },
+            onDismissRequest = { onDismissTalkRequest(firstTalkRequest.userId) },
+            title = { Text("Talk Request") },
+            text = { Text("${firstTalkRequest.userName} is requesting to speak.") },
             confirmButton = {
-                TextButton(onClick = { onApproveUnmuteRequest(unmuteRequest) }) {
-                    Text("Accept")
+                TextButton(onClick = { onApproveTalkRequest(firstTalkRequest.userId) }) {
+                    Text("Unmute")
                 }
             },
             dismissButton = {
-                TextButton(onClick = onDismissUnmuteRequest) {
+                TextButton(onClick = { onDismissTalkRequest(firstTalkRequest.userId) }) {
                     Text("Decline")
                 }
             }
@@ -581,7 +600,11 @@ fun ZoomSessionScreen(
                 hostRole = hostRole,
                 hostImageUrl = hostImageUrl,
                 remoteParticipants = remoteParticipants,
-                onToggleParticipantMute = onToggleParticipantMute
+                talkRequests = talkRequests,
+                talkPermissions = talkPermissions,
+                onToggleParticipantMute = onToggleParticipantMute,
+                onApproveTalkRequest = onApproveTalkRequest,
+                onRevokeTalkPermission = onRevokeTalkPermission
             )
         }
     }
@@ -938,10 +961,14 @@ private fun ZoomSessionScreenParticipantPreview() {
         onChatReaction = { _, _ -> },
         onLeaveSession = {},
         onSelectTranscriptionLanguage = {},
-        onRequestUnmute = {},
-        unmuteRequest = null,
-        onApproveUnmuteRequest = {},
-        onDismissUnmuteRequest = {},
+        talkRequests = emptyList(),
+        talkPermissions = emptySet(),
+        isRequestingToTalk = false,
+        onRequestToTalk = {},
+        onCancelTalkRequest = {},
+        onApproveTalkRequest = {},
+        onRevokeTalkPermission = {},
+        onDismissTalkRequest = {},
         isHostSharing = false,
         isHostVideoOn = false
     )

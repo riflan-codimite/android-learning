@@ -83,7 +83,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
     var activeReactions = mutableStateOf(listOf<ReactionEmoji>())
     var raisedHands = mutableStateOf(listOf<RaisedHand>())
     var hostNotification = mutableStateOf<String?>(null)
-    var unmuteRequest = mutableStateOf<String?>(null)
+    var talkRequests = mutableStateOf(listOf<TalkRequest>())
+    var talkPermissions = mutableStateOf(setOf<String>())
+    var isRequestingToTalk = mutableStateOf(false)
     var isHostSharing = mutableStateOf(false)
     var hostVideoVersion = mutableStateOf(0)
     var isHostVideoOn = mutableStateOf(false)
@@ -231,10 +233,53 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                                 raisedHands.value = raisedHands.value.filter { it.userId != userId }
                             }
                         }
-                        "unmute_request" -> {
-                            if (isHost) {
-                                val userName = json.optString("userName", "Someone")
-                                unmuteRequest.value = userName
+                        "talkRequest" -> {
+                            val userId = json.opt("userId")?.toString() ?: ""
+                            val userName = json.optString("userName", sender?.userName ?: "Someone")
+                            val requesting = json.optBoolean("requesting", true)
+                            val timestamp = json.optLong("timestamp", System.currentTimeMillis())
+                            if (requesting) {
+                                talkRequests.value = talkRequests.value.filter { it.userId != userId } + TalkRequest(
+                                    userId = userId,
+                                    userName = userName,
+                                    requesting = true,
+                                    timestamp = timestamp
+                                )
+                                if (isHost) {
+                                    hostNotification.value = "\uD83C\uDF99\uFE0F $userName wants to talk"
+                                }
+                            } else {
+                                talkRequests.value = talkRequests.value.filter { it.userId != userId }
+                            }
+                        }
+                        "talkPermission" -> {
+                            if (!isHost) {
+                                val userId = json.opt("userId")?.toString() ?: ""
+                                val granted = json.optBoolean("granted", false)
+                                val myUserId = sdk.session?.mySelf?.userID ?: ""
+                                if (userId == myUserId) {
+                                    if (granted) {
+                                        talkPermissions.value = talkPermissions.value + userId
+                                        isRequestingToTalk.value = false
+                                        // Auto-unmute when permission is granted
+                                        viewModelScope.launch { performUnmute() }
+                                    } else {
+                                        talkPermissions.value = talkPermissions.value - userId
+                                        isRequestingToTalk.value = false
+                                        // Auto-mute when permission is revoked
+                                        viewModelScope.launch { performMute() }
+                                    }
+                                }
+                            } else {
+                                // Host also tracks permissions for UI
+                                val userId = json.opt("userId")?.toString() ?: ""
+                                val granted = json.optBoolean("granted", false)
+                                if (granted) {
+                                    talkPermissions.value = talkPermissions.value + userId
+                                    talkRequests.value = talkRequests.value.filter { it.userId != userId }
+                                } else {
+                                    talkPermissions.value = talkPermissions.value - userId
+                                }
                             }
                         }
                         "live_caption" -> {
@@ -533,6 +578,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         hostChatMessages.value = emptyList()
         selectedChatTab.value = ChatTab.EVERYONE
         unreadHostMessageCount.value = 0
+        talkRequests.value = emptyList()
+        talkPermissions.value = emptySet()
+        isRequestingToTalk.value = false
     }
 
     // ==================== AUDIO/VIDEO CONTROLS ====================
@@ -802,38 +850,98 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // ==================== UNMUTE REQUEST ====================
+    // ==================== TALK REQUEST / PERMISSION ====================
 
-    fun sendUnmuteRequest() {
+    private suspend fun performUnmute() {
+        val myUser = sdk.session?.mySelf ?: return
+        val audioHelper = sdk.audioHelper ?: return
+        val audioStatus = myUser.audioStatus
+        val isAudioConnected = audioStatus?.audioType != ZoomVideoSDKAudioStatus.ZoomVideoSDKAudioType.ZoomVideoSDKAudioType_None
+        if (!isAudioConnected) {
+            audioHelper.startAudio()
+            delay(500)
+        }
+        audioHelper.unMuteAudio(myUser)
+        isMuted.value = false
+    }
+
+    private fun performMute() {
+        val myUser = sdk.session?.mySelf ?: return
+        sdk.audioHelper?.muteAudio(myUser)
+        isMuted.value = true
+    }
+
+    fun requestToTalk() {
+        val currentUserId = sdk.session?.mySelf?.userID ?: return
+        isRequestingToTalk.value = true
         try {
             val command = org.json.JSONObject().apply {
-                put("type", "unmute_request")
+                put("type", "talkRequest")
+                put("userId", currentUserId)
                 put("userName", displayName)
+                put("requesting", true)
+                put("timestamp", System.currentTimeMillis())
             }.toString()
             sdk.cmdChannel?.sendCommand(null, command)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send unmute request: ${e.message}")
+            Log.e(TAG, "Failed to send talk request: ${e.message}")
+            isRequestingToTalk.value = false
         }
     }
 
-    fun approveUnmuteRequest(userName: String) {
-        val remoteUsers = sdk.session?.remoteUsers ?: return
-        val user = remoteUsers.find { it.userName == userName }
-        user?.let {
-            try {
-                val command = org.json.JSONObject().apply {
-                    put("type", "toggle_mute")
-                    put("fromHost", true)
-                }.toString()
-                sdk.cmdChannel?.sendCommand(it, command)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send unmute approval command: ${e.message}")
-            }
+    fun cancelTalkRequest() {
+        val currentUserId = sdk.session?.mySelf?.userID ?: return
+        isRequestingToTalk.value = false
+        try {
+            val command = org.json.JSONObject().apply {
+                put("type", "talkRequest")
+                put("userId", currentUserId)
+                put("userName", displayName)
+                put("requesting", false)
+                put("timestamp", System.currentTimeMillis())
+            }.toString()
+            sdk.cmdChannel?.sendCommand(null, command)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel talk request: ${e.message}")
         }
-        unmuteRequest.value = null
     }
 
-    fun dismissUnmuteRequest() {
-        unmuteRequest.value = null
+    fun approveTalkRequest(userId: String) {
+        talkPermissions.value = talkPermissions.value + userId
+        talkRequests.value = talkRequests.value.filter { it.userId != userId }
+        try {
+            val command = org.json.JSONObject().apply {
+                put("type", "talkPermission")
+                put("userId", userId)
+                put("granted", true)
+            }.toString()
+            // Send to all so the target participant (and web clients) receive it
+            sdk.cmdChannel?.sendCommand(null, command)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send talk permission: ${e.message}")
+        }
+    }
+
+    fun revokeTalkPermission(userId: String) {
+        talkPermissions.value = talkPermissions.value - userId
+        try {
+            val command = org.json.JSONObject().apply {
+                put("type", "talkPermission")
+                put("userId", userId)
+                put("granted", false)
+            }.toString()
+            sdk.cmdChannel?.sendCommand(null, command)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to revoke talk permission: ${e.message}")
+        }
+        // Also mute the participant via SDK
+        val remoteUser = sdk.session?.remoteUsers?.firstOrNull {
+            (it.userID ?: it.userName) == userId
+        }
+        remoteUser?.let { sdk.audioHelper?.muteAudio(it) }
+    }
+
+    fun dismissTalkRequest(userId: String) {
+        talkRequests.value = talkRequests.value.filter { it.userId != userId }
     }
 }

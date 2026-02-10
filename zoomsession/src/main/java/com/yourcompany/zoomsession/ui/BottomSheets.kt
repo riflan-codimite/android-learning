@@ -749,7 +749,11 @@ fun ParticipantsBottomSheet(
     hostRole: ParticipantRole,
     hostImageUrl: String?,
     remoteParticipants: List<Participant>,
-    onToggleParticipantMute: (String) -> Unit
+    talkRequests: List<TalkRequest> = emptyList(),
+    talkPermissions: Set<String> = emptySet(),
+    onToggleParticipantMute: (String) -> Unit,
+    onApproveTalkRequest: (String) -> Unit = {},
+    onRevokeTalkPermission: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -807,6 +811,8 @@ fun ParticipantsBottomSheet(
             // Remote participants sorted by role: Host, Manager, Participant, Guest
             val sortedParticipants = remoteParticipants.sortedBy { it.role.ordinal }
             items(sortedParticipants) { participant ->
+                val hasTalkRequest = talkRequests.any { it.userId == participant.id }
+                val hasTalkPermission = talkPermissions.contains(participant.id)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -821,25 +827,53 @@ fun ParticipantsBottomSheet(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(participant.name, fontWeight = FontWeight.Medium, color = Color.White)
-                        Text(
-                            participant.role.displayName,
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp
-                        )
+                        when {
+                            hasTalkRequest -> Text(
+                                "\uD83C\uDF99\uFE0F Wants to talk",
+                                color = ZoomColors.Warning,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            hasTalkPermission -> Text(
+                                "Can speak",
+                                color = ZoomColors.Success,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            else -> Text(
+                                participant.role.displayName,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                     if ((isHost || hostRole == ParticipantRole.MANAGER) &&
                         participant.role != ParticipantRole.HOST &&
                         participant.role != ParticipantRole.MANAGER
                     ) {
-                        IconButton(
-                            onClick = { onToggleParticipantMute(participant.id) }
-                        ) {
-                            Icon(
-                                imageVector = if (participant.isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
-                                contentDescription = if (participant.isMuted) "Unmute ${participant.name}" else "Mute ${participant.name}",
-                                tint = if (participant.isMuted) ZoomColors.Error else ZoomColors.Success,
-                                modifier = Modifier.size(22.dp)
-                            )
+                        when {
+                            hasTalkRequest -> {
+                                TextButton(onClick = { onApproveTalkRequest(participant.id) }) {
+                                    Text("Unmute", color = ZoomColors.Success, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            hasTalkPermission -> {
+                                TextButton(onClick = { onRevokeTalkPermission(participant.id) }) {
+                                    Text("Mute", color = ZoomColors.Error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            else -> {
+                                IconButton(
+                                    onClick = { onToggleParticipantMute(participant.id) }
+                                ) {
+                                    Icon(
+                                        imageVector = if (participant.isMuted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
+                                        contentDescription = if (participant.isMuted) "Unmute ${participant.name}" else "Mute ${participant.name}",
+                                        tint = if (participant.isMuted) ZoomColors.Error else ZoomColors.Success,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

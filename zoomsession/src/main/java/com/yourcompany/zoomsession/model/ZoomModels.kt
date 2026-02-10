@@ -96,6 +96,21 @@ data class RaisedHand(
 )
 
 /**
+ * Data class representing a talk request from a participant, matching the web app's talkRequest payload.
+ *
+ * @property userId User ID of the participant requesting to talk
+ * @property userName Display name for UI rendering
+ * @property requesting True if requesting, false if cancelling
+ * @property timestamp Unix timestamp when the request was made
+ */
+data class TalkRequest(
+    val userId: String,
+    val userName: String,
+    val requesting: Boolean = true,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
  * Data class representing a breakout room/subsession.
  *
  * @property id Unique identifier for the subsession
