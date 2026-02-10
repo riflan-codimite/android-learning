@@ -105,7 +105,9 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
                 val hostUser = sdk.session?.sessionHost
                 isHostInSession.value = hostUser != null
                 if (hostUser != null) {
-                    isHostVideoOn.value = hostUser.videoCanvas != null
+                    isHostVideoOn.value =
+                        hostUser.videoCanvas?.videoStatus?.isOn == true
+                    hostVideoVersion.value++
                 }
             }
         }
@@ -128,17 +130,27 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onUserJoin(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
             updateParticipantCount()
-            // Detect when the host joins
+            // Detect when the host joins and check their video status
             if (!isHost) {
                 val hostUser = sdk.session?.sessionHost
                 if (hostUser != null) {
                     isHostInSession.value = true
+                    isHostVideoOn.value = hostUser.videoCanvas?.videoStatus?.isOn == true
+                    hostVideoVersion.value++
                 }
             }
         }
 
         override fun onUserLeave(userHelper: ZoomVideoSDKUserHelper?, userList: MutableList<ZoomVideoSDKUser>?) {
             updateParticipantCount()
+            // Detect when the host leaves
+            if (!isHost) {
+                val hostUser = sdk.session?.sessionHost
+                if (hostUser == null) {
+                    isHostInSession.value = false
+                    isHostVideoOn.value = false
+                }
+            }
         }
 
         override fun onChatNewMessageNotify(chatHelper: ZoomVideoSDKChatHelper?, messageItem: ZoomVideoSDKChatMessage?) {
@@ -359,7 +371,7 @@ class ZoomSessionViewModel(application: Application) : AndroidViewModel(applicat
             val hostUser = session.sessionHost ?: return
             val hostChanged = userList?.any { it.userID == hostUser.userID } ?: false
             if (hostChanged) {
-                isHostVideoOn.value = hostUser.videoCanvas != null
+                isHostVideoOn.value = hostUser.videoCanvas?.videoStatus?.isOn == true
                 hostVideoVersion.value++
             }
         }
